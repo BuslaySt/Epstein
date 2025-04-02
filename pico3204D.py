@@ -4,20 +4,12 @@ import numpy as np
 import ctypes
 from picosdk.ps3000a import ps3000a as ps
 from picosdk.functions import adc2mV, assert_pico_ok
+import matplotlib.pyplot as plt
 
 class Picoscope3204D:
-    def __init__(self, sample_rate=1252, max_samples=30000, frequency=50, amplitude=1000000):
-        # self.device = {}
-        # self.channel_a = 0 # channel_a = PS3000A_CHANNEL_A = 0
-        # self.channel_b = 1 # channel_b = PS3000A_CHANNEL_B = 1
-        self.sample_rate = sample_rate  # 1252 = 10 mks
-        self.max_samples = max_samples
-        self.frequency = frequency
-        self.amplitude = amplitude
-        
-    def initialize_ports(self):
+    def __init__(self):
         """
-        Initialize the Picoscope device and ports A and B.
+        Initialize the Picoscope device.
         """
         # Create chandle and status ready for use
         self.status = {}
@@ -44,9 +36,12 @@ class Picoscope3204D:
                 raise RuntimeError("Unable to open Picoscope device.")
         assert_pico_ok(self.status["ChangePowerSource"])
         print("Picoscope initialized.")
-
+        
+    def initialize_ports(self):
+        """
+        Initialize the Picoscope ports A and B.
+        """
         # Set up channel A
-
         # handle = chandle
         channel = ps.PS3000A_CHANNEL['PS3000A_CHANNEL_A'] # = 0
         enabled = 1
@@ -68,7 +63,7 @@ class Picoscope3204D:
         channel = ps.PS3000A_CHANNEL['PS3000A_CHANNEL_B'] # == 1
         enabled = 1
         coupling_type = ps.PS3000A_COUPLING['PS3000A_DC'] # = PS3000A_DC == 1
-        self.channelB_range = ps.PS3000A_RANGE['PS3000A_1V']
+        self.channelB_range = ps.PS3000A_RANGE['PS3000A_2V']
         analogue_offset = 0 # 0 V
 
         self.status["setChB"] = ps.ps3000aSetChannel(self.chandle,
@@ -103,36 +98,38 @@ class Picoscope3204D:
         # handle = chandle
         # offsetVoltage = 0
         # pkToPk = 2000000 ; max 2 V
+        self.amplitude = amplitude
         # waveType = ctypes.c_int16(0) = PS3000A_SINE
+        wavetype = ctypes.c_int16(0)
         # startFrequency = 50 Hz
         # stopFrequency = 50 Hz
+        self.frequency = frequency
         # increment = 0
         # dwellTime = 1
         # sweepType = ctypes.c_int16(1) = PS3000A_UP
+        sweepType = ctypes.c_int32(0)
         # operation = 0
         # shots = 0
         # sweeps = 0
         # triggerType = ctypes.c_int16(0) = PS3000A_SIGGEN_RISING
-        # triggerSource = ctypes.c_int16(0) = P3000A_SIGGEN_NONE
-        # extInThreshold = 1
-        wavetype = ctypes.c_int16(0)
-        sweepType = ctypes.c_int32(0)
         triggertype = ctypes.c_int32(0)
+        # triggerSource = ctypes.c_int16(0) = P3000A_SIGGEN_NONE
         triggerSource = ctypes.c_int32(0)
-
-        self.status["SetSigGenBuiltIn"] = ps.ps3000aSetSigGenBuiltIn(self.chandle, 0, 1000000, wavetype, 50, 50, 0, 1, sweepType, 0, 4, 0, triggertype, triggerSource, 1)
+        # extInThreshold = 1
+        self.status["SetSigGenBuiltIn"] = ps.ps3000aSetSigGenBuiltIn(self.chandle, 0, self.amplitude, wavetype, self.frequency, self.frequency, 0, 1, sweepType, 0, 4, 0, triggertype, triggerSource, 1)
         assert_pico_ok(self.status["SetSigGenBuiltIn"])
 
         print(f"Generator set up with {frequency} Hz and {amplitude/1000} mV.")
     
-    def read_data(self):
+    def read_data(self, max_samples=30000, sample_rate=1252):
         """
         Read data from the generator.
         """
         # Setting the number of sample to be collected
         preTriggerSamples = 0
-        postTriggerSamples = 30000
-        maxsamples = preTriggerSamples + postTriggerSamples
+        postTriggerSamples = max_samples
+        # maxsamples = preTriggerSamples + postTriggerSamples
+        self.maxsamples = max_samples
 
         # Gets timebase infomation
         # WARNING: When using this example it may not be possible to access all Timebases as all channels are enabled by default when opening the scope.  
@@ -143,16 +140,16 @@ class Picoscope3204D:
         # TimeIntervalNanoseconds = ctypes.byref(timeIntervalns)
         # MaxSamples = ctypes.byref(returnedMaxSamples)
         # Segement index = 0
-        timebase = 1252 # 10 mks
+        self.timebase = sample_rate # 1252 == 10 mks
         timeIntervalns = ctypes.c_float()
         returnedMaxSamples = ctypes.c_int16()
-        self.status["GetTimebase"] = ps.ps3000aGetTimebase2(self.chandle, timebase, maxsamples, ctypes.byref(timeIntervalns), 1, ctypes.byref(returnedMaxSamples), 0)
+        self.status["GetTimebase"] = ps.ps3000aGetTimebase2(self.chandle, self.timebase, self.maxsamples, ctypes.byref(timeIntervalns), 1, ctypes.byref(returnedMaxSamples), 0)
         assert_pico_ok(self.status["GetTimebase"])
 
         # Creates a overlow location for data
         overflow = ctypes.c_int16()
         # Creates converted types maxsamples
-        cmaxSamples = ctypes.c_int32(maxsamples)
+        cmaxSamples = ctypes.c_int32(self.maxsamples)
 
         # Starts the block capture
         # Handle = chandle
@@ -163,7 +160,7 @@ class Picoscope3204D:
         # Segment index = 0
         # LpRead = None
         # pParameter = None
-        self.status["runblock"] = ps.ps3000aRunBlock(self.chandle, preTriggerSamples, postTriggerSamples, timebase, 1, None, 0, None, None)
+        self.status["runblock"] = ps.ps3000aRunBlock(self.chandle, preTriggerSamples, postTriggerSamples, self.timebase, 1, None, 0, None, None)
         assert_pico_ok(self.status["runblock"])
 
         # Create buffers ready for assigning pointers for data collection
@@ -171,10 +168,10 @@ class Picoscope3204D:
         # bufferBMax = np.zeros(shape=sizeOfOneBuffer, dtype=np.int16)
 
         # Create buffers ready for assigning pointers for data collection
-        bufferAMax = (ctypes.c_int16 * maxsamples)()
-        # bufferAMin = (ctypes.c_int16 * maxsamples)() # used for downsampling
-        bufferBMax = (ctypes.c_int16 * maxsamples)()
-        # bufferBMin = (ctypes.c_int16 * maxsamples)() # used for downsampling
+        bufferAMax = (ctypes.c_int16 * self.maxsamples)()
+        # bufferAMin = (ctypes.c_int16 * self.maxsamples)() # used for downsampling
+        bufferBMax = (ctypes.c_int16 * self.maxsamples)()
+        # bufferBMin = (ctypes.c_int16 * self.maxsamples)() # used for downsampling
 
 
         # Set data buffer location for data collection from channel A
@@ -191,7 +188,7 @@ class Picoscope3204D:
                                                             ps.PS3000A_CHANNEL['PS3000A_CHANNEL_A'],
                                                             ctypes.byref(bufferAMax), #bufferAMax.ctypes.data_as(ctypes.POINTER(ctypes.c_int16)),
                                                             None,
-                                                            maxsamples,
+                                                            self.maxsamples,
                                                             0,
                                                             ps.PS3000A_RATIO_MODE['PS3000A_RATIO_MODE_NONE'])
         assert_pico_ok(self.status["setDataBuffersA"])
@@ -202,16 +199,17 @@ class Picoscope3204D:
                                                             ps.PS3000A_CHANNEL['PS3000A_CHANNEL_B'],
                                                             ctypes.byref(bufferBMax), #bufferBMax.ctypes.data_as(ctypes.POINTER(ctypes.c_int16)),
                                                             None,
-                                                            maxsamples,
+                                                            self.maxsamples,
                                                             0,
                                                             ps.PS3000A_RATIO_MODE['PS3000A_RATIO_MODE_NONE'])
 
         # Creates a overlow location for data
         overflow = (ctypes.c_int16 * 10)()
         # Creates converted types maxsamples
-        cmaxSamples = ctypes.c_int32(maxsamples)
+        cmaxSamples = ctypes.c_int32(self.maxsamples)
 
         # Checks data collection to finish the capture
+        # Wait for the block to complete
         ready = ctypes.c_int16(0)
         check = ctypes.c_int16(0)
         while ready.value == check.value:
@@ -258,32 +256,13 @@ class Picoscope3204D:
 
         return df
 
-        # Start the data collection
-        total_samples = self.max_samples
-        ps3000.run_block(self.device, total_samples)
-        
-        # Wait for the block to complete
-        ready = ctypes.c_int16()
-        while ready.value == 0:
-            ps3000.is_ready(self.device, ctypes.byref(ready))
-        
-        # Retrieve voltage data
-        channel_a_data = np.zeros(total_samples, dtype=np.int16)
-        channel_b_data = np.zeros(total_samples, dtype=np.int16)
-        
-        ps3000.get_values(self.device, total_samples, 0, 0, 0, channel_a_data, 0, 0)
-        ps3000.get_values(self.device, total_samples, 0, 1, 0, channel_b_data, 0, 0)
-        
-        # Create a Pandas DataFrame
-        time = np.linspace(0, total_samples / self.sample_rate, total_samples)
-        data = {
-            'Time (s)': time,
-            'Channel A': channel_a_data,
-            'Channel B': channel_b_data
-        }
-        
-        return pd.DataFrame(data)
-    
+    def save_data(self, df: pd.DataFrame):
+        """
+        Close the Picoscope device.
+        """
+        filename = time.strftime("%Y-%m-%d_%H-%M")
+        df.to_csv(f"rawdata_{filename}_{self.maxsamples}@{self.frequency}Hz_{int(self.amplitude/1000)}mV.csv")
+
     def close(self):
         """
         Close the Picoscope device.
@@ -304,12 +283,13 @@ class Picoscope3204D:
 
 if __name__ == "__main__":
     picoscope = Picoscope3204D()
-    
     try:
         picoscope.initialize_ports()
+        picoscope.setup_trigger()
         input('Подключите усилитель')
-        picoscope.setup_generator(frequency=50, amplitude=1000000)  # 50 Hz and 1 V
-        data = picoscope.read_data()
+        picoscope.setup_generator(frequency=10, amplitude=100000)  # 30000 samples at 50 Hz, 1 V, 10 mks
+        data = picoscope.read_data(max_samples=20000, sample_rate=1252)
+        # picoscope.save_data(data)
         print(data.head(20))
     except Exception as e:
         print(f"An error occurred: {e}")
