@@ -13,7 +13,7 @@ class Picoscope3204D:
         """
         # Create chandle and status ready for use
         self.status = {}
-        self.chandle = ctypes.c_int16() # == chandle
+        self.chandle = ctypes.c_int16() # device identifier returned by ps3000aOpenUnit
 
         # Opens the device/s
         self.status["openunit"] = ps.ps3000aOpenUnit(ctypes.byref(self.chandle), None)
@@ -23,18 +23,20 @@ class Picoscope3204D:
         except:
             # powerstate becomes the status number of openunit
             powerstate = self.status["openunit"]
-
             # If powerstate is the same as 282 then it will run this if statement
             if powerstate == 282:
                 # Changes the power input to "PICO_POWER_SUPPLY_NOT_CONNECTED"
+                print("PICO_POWER_SUPPLY_NOT_CONNECTED")
                 self.status["ChangePowerSource"] = ps.ps3000aChangePowerSource(self.chandle, 282)
                 # If the powerstate is the same as 286 then it will run this if statement
             elif powerstate == 286:
                 # Changes the power input to "PICO_USB3_0_DEVICE_NON_USB3_0_PORT"
+                print("PICO_USB3_0_DEVICE_NON_USB3_0_PORT")
                 self.status["ChangePowerSource"] = ps.ps3000aChangePowerSource(self.chandle, 286)
             else:
                 raise RuntimeError("Unable to open Picoscope device.")
-        assert_pico_ok(self.status["ChangePowerSource"])
+            
+            assert_pico_ok(self.status["ChangePowerSource"])
         print("Picoscope initialized.")
         
     def initialize_ports(self):
@@ -46,8 +48,18 @@ class Picoscope3204D:
         channel = ps.PS3000A_CHANNEL['PS3000A_CHANNEL_A'] # = 0
         enabled = 1
         coupling_type = ps.PS3000A_COUPLING['PS3000A_DC'] # = PS3000A_DC == 1
-        # range = PS3000A_2V = 7 ; PS3000A_10V = 8
-        self.channelA_range = ps.PS3000A_RANGE['PS3000A_500MV'] # ==
+        # 0  == PS3000A_10MV:  ±10 mV - нет
+        # 1  == PS3000A_20MV:  ±20 mV - нет
+        # 2  == PS3000A_50MV:  ±50 mV
+        # 3  == PS3000A_100MV: ±100 mV
+        # 4  == PS3000A_200MV: ±200 mV
+        # 5  == PS3000A_500MV: ±500 mV
+        # 6  == PS3000A_1V:    ±1 V
+        # 7  == PS3000A_2V:    ±2 V
+        # 8  == PS3000A_5V:    ±5 V
+        # 9  == PS3000A_10V:   ±10 V
+        # 10 == PS3000A_20V:   ±20 V
+        self.channelA_range = ps.PS3000A_RANGE['PS3000A_500MV']
         analogue_offset = 0 # 0 V
 
         self.status["setChA"] = ps.ps3000aSetChannel(self.chandle,
@@ -74,7 +86,7 @@ class Picoscope3204D:
                                                 analogue_offset)
         assert_pico_ok(self.status["setChB"])
 
-    def setup_trigger(self, source="a", direction="rising"):
+    def setup_trigger(self):
 
         # Sets up simple trigger
         # Handle = Chandle ; device identifier returned by ps3000aOpenUnit
@@ -85,10 +97,10 @@ class Picoscope3204D:
         # Direction = ps3000A_Rising = 2 ; The following directions are supported: ABOVE, BELOW, RISING, FALLING and RISING_OR_FALLING.
         # Delay = 0 ; the time between the trigger occurring and the first sample.
         # autoTrigger_ms = 1000 ; the number of milliseconds the device will wait if no trigger occurs
-        self.status["trigger"] = ps.ps3000aSetSimpleTrigger(self.chandle, 1, ps.PS3000A_CHANNEL['PS3000A_CHANNEL_A'], 0, ps.PS3000A_THRESHOLD_DIRECTION['PS3000A_RISING'], 0, 1000)
+        self.status["trigger"] = ps.ps3000aSetSimpleTrigger(self.chandle, 1, ps.PS3000A_CHANNEL['PS3000A_CHANNEL_B'], 0, ps.PS3000A_THRESHOLD_DIRECTION['PS3000A_RISING'], 0, 1000)
         assert_pico_ok(self.status["trigger"])
 
-        print('Trigger set up')
+        print('Trigger set up on chB')
 
     def setup_generator(self, frequency=50, amplitude=1000000) -> None:
         """
@@ -123,9 +135,9 @@ class Picoscope3204D:
     
     def read_data(self, max_samples=30000, sample_rate=1252):
         """
-        Read data from the generator.
+        Read data samples from the Pico device.
         """
-        # Setting the number of sample to be collected
+        # Setting the number of samples to be collected
         preTriggerSamples = 0
         postTriggerSamples = max_samples
         # maxsamples = preTriggerSamples + postTriggerSamples
@@ -252,9 +264,34 @@ class Picoscope3204D:
         # data['ch_a'] = adc2mVChAMax
         # data['ch_b'] = adc2mVChBMax
 
-        df = pd.DataFrame({'Time (ns)' : time_axis, 'Channel A, mV' : adc2mVChAMax, 'Channel B, mV' : adc2mVChBMax})
+        df = pd.DataFrame({'time' : time_axis, 'ch_A' : adc2mVChAMax, 'ch_B' : adc2mVChBMax})
 
         return df
+
+    def check_limits(self, df) -> bool:
+        """
+        Check if data is within channel limits.
+        """
+        power_range = { 0  : 10,
+                        1  : 20,
+                        2  : 50,
+                        3  : 100,
+                        4  : 200,
+                        5  : 500,
+                        6  : 1000,
+                        7  : 2000,
+                        8  : 5000,
+                        9  : 10000,
+                        10 : 20000}
+        if (df.min()['ch_A'] > -power_range[self.channelA_range]) and (df.max()['ch_A'] < power_range[self.channelA_range]) and (df.min()['ch_B'] > -power_range[self.channelB_range]) and (df.max()['ch_B'] < power_range[self.channelB_range]):
+            print("В пределах измерений каналов")
+            return True
+        if (df.min()['ch_A'] <= -power_range[self.channelA_range]) or (df.max()['ch_A'] >= power_range[self.channelA_range]):
+            print("выход за пределы измерения канала А")
+            return False
+        if (df.min()['ch_B'] <= -power_range[self.channelB_range]) or (df.max()['ch_B'] >= power_range[self.channelB_range]):
+            print("выход за пределы измерения канала B")    
+            return False
 
     def save_data(self, df: pd.DataFrame):
         """
@@ -287,10 +324,13 @@ if __name__ == "__main__":
         picoscope.initialize_ports()
         picoscope.setup_trigger()
         input('Подключите усилитель')
-        picoscope.setup_generator(frequency=10, amplitude=100000)  # 30000 samples at 50 Hz, 1 V, 10 mks
+        picoscope.setup_generator(frequency=50, amplitude=1000000)  # 30000 samples at 50 Hz, 1 V, 10 mks
         data = picoscope.read_data(max_samples=20000, sample_rate=1252)
-        # picoscope.save_data(data)
-        print(data.head(20))
+        if picoscope.check_limits(data):
+            print(data.head(20))
+        else:
+            print("Надо увеличить лимиты канала")
+        # picoscope.save_data(data)        
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
