@@ -1,0 +1,52 @@
+QMainWindow {
+    background-color: #282c34; /* Тёмный фон */
+}
+QLabel {
+    font-size: 14px;
+    color: #ffffff; /* Белый текст */
+}
+QLineEdit {
+    padding: 5px;
+    border: 1px solid #6e7780;
+    border-radius: 5px;
+    font-size: 14px;
+    background-color: #393f4a; /* Светлая тёмная панель */
+    color: #ffffff; /* Белый текст */
+}
+QPushButton {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+    border-radius: 5px;
+}
+QPushButton:hover {
+    background-color: #0056b3;
+}
+QTextEdit {
+    border: 1px solid #6e7780;
+    border-radius: 5px;
+    padding: 5px;
+    font-size: 14px;
+    background-color: #393f4a; /* Светлая тёмная панель */
+    color: #ffffff; /* Белый текст */
+}
+QCheckBox {
+    spacing: 10px;
+    font-size: 14px;
+    color: #ffffff; /* Белый текст */
+}
+QGroupBox {
+    margin-top: 1ex;
+    border: 1px solid #6e7780; /* Граница группы */
+    border-radius: 5px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 3px 0 3px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #ffffff; /* Белый текст */
+}
