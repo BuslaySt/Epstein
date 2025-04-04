@@ -3,37 +3,69 @@ import numpy as np
 import matplotlib.pyplot as plt
 from icecream import ic
 import epscalc
+#v1.1
 
 ic.disable()
 
 #основной скрипт вычисления и вывода графиков
-def run (df, freq, key):
-    #инициализация параметров
-    timeset = 10**9
+def run (runParameters):
+    '''
+    l = 0.39 длина полосы стали, константа для данного аппарата Эпштейна.
+    Остальные параметры образцов стали задаются пользователем и передаются функции в test_parameters
+    configNumber - конфигурация обмоток. 1 - полная, 4 - одна четверть
+    '''
+    
+    #!!константы для данной реализации измерительной установки
+    l = 0.39 #длина полосы стали, константа для образца аппарата Эпштейна
+    measuringCoilCount = 50 #количество витков в измерительной катушке
+    
+    df, freq, key, configNumber, test_parameters = runParameters
+    
+    coilCoef = 4*measuringCoilCount # 4 измерительных катушки в рамке 
+    x, y, N, ro = test_parameters
+    currentCoef = 5 #
+    ersted2Am = 9.8*79.57 #пересчет из Эрстед в А/м, 9.8 - множитель для конкретного набора катушек
+    match configNumber:
+        case 1: #150:50
+            confCoef = 1/(0.75*ersted2Am)
+            ratio = 3 
+        case 2: #100:50
+            confCoef = 1/(0.5*ersted2Am)
+            ratio = 2
+        case 3: #50:50
+            confCoef = 1/(0.25*ersted2Am)
+            ratio = 1
+    
+    bCoef = N*x*y #приведение потока к индукции
+    coefSet = [currentCoef, confCoef, bCoef, coilCoef]
+    timeset = 10**9 #
     period = timeset/freq
     time_coef = 10**-9 
     time = df['time'].values
     dx = (time_coef*(time[1] - time[0]))  
     period_number = int((time[-1] - time[0])//period)
-    
+    ic(period_number)
     startIndices, finishIndices = epscalc.get_periods(df, period_number, period)
-    integratedValues, currentValues = epscalc.voltage_integration(df, startIndices, finishIndices, dx)
+    integratedValues, currentValues = epscalc.voltage_integration(df, startIndices, finishIndices, dx, coefSet)
 
     avgInt = epscalc.array_averaging(integratedValues)
     avgCurrent = epscalc.array_averaging(currentValues)
     Bmax = max(avgInt)
     
     powerLosses = 0
-    if key ==1:
-        powerLosses = epscalc.powerloss_calculation(df, startIndices, finishIndices)
+    if key == 1:
+        mass = 4*N*x*y*l*ro
+        ic(mass)
+        powerLosses = epscalc.powerloss_calculation(df, startIndices, finishIndices, currentCoef)*ratio/mass
 
 
     return Bmax, avgCurrent, avgInt, powerLosses
 
+
 #функция определения индексов начала и конца периодов
 def get_periods (df, period_number, period):
 
-    startIndex = 0
+    startIndex = 100
     finishIndex = 0
     startIndices = []
     finishIndices = []
@@ -41,67 +73,67 @@ def get_periods (df, period_number, period):
     for num in range(0, period_number):
         startIndices.append(startIndex)
         startTime = df['time'].loc[startIndex]
-        #ic(startTime)
         finishTime = startTime + period
-        #ic(finishTime)
-
+        
         for i in df.index:
             if abs(df['time'][i] - round(finishTime, 3)) < 0.0001:
                 finishIndex = i
-            #ic(finishIndex)
+            
         finishIndices.append(finishIndex)
         startIndex = finishIndex
     
     return (startIndices, finishIndices)
 
-
-def powerloss_calculation (df, startIndices, finishIndices):
+#функция измерения потерь
+def powerloss_calculation (df, startIndices, finishIndices, currentCoef):
     current = []
     voltage = []
     for start, finish in zip(startIndices, finishIndices):
-        #ic(start, finish)
         df_period = (df[start:finish].reset_index(drop = True))
         current.append(df_period['ch_A'].values)
         voltage.append(df_period['ch_B'].values)
     
     avgCurrent = epscalc.array_averaging(current)
     avgVoltage = epscalc.array_averaging(voltage)
-    power = []
+    losses = []
     for i in range(len(avgCurrent)):
-        power.append(avgCurrent[i]*avgVoltage[i]/10**6)
+        losses.append(avgCurrent[i]*avgVoltage[i]*currentCoef/10**6) #10**6 - коэффициент приведения величин, собранных АЦП, из мВ в В
     
-    avgLosses = sum(power)/len(power)
+    avgLosses = sum(losses)/len(losses)
 
     return (avgLosses)    
         
 #функция вывода всех периодов тока и интегрирования отдельных периодов
-def voltage_integration(df, startIndices, finishIndices, dx):
+def voltage_integration(df, startIndices, finishIndices, dx, coefSet):
+    
+    #coefSet[0] - current sensing
+    #coefSet[1] - coil config and current to H
+    #coefSet[2] - voltage to B
     allInt = []
-    current = []
+    allCurrent = []
     for start, finish in zip(startIndices, finishIndices):
-        ic(start, finish)
+        
         df_period = (df[start:finish].reset_index(drop = True))
-        y = df_period['ch_B'].values/1000
-        n = len(y) - 1
-        current.append(df_period['ch_A'].values)
+        voltage = df_period['ch_B'].values/1000
+        n = len(voltage) - 1
+        allCurrent.append(df_period['ch_A'].values*(coefSet[0]*coefSet[1]/1000))
 
         intVal = []
         startValue = 0
     
-        intVal = epscalc.trapezoidal_integration (n, y, dx)
-        ic(len(intVal), sum(intVal))
-        corrInt = epscalc.minus_integration(intVal)#print(intU)
+        intVal = epscalc.trapezoidal_integration (n, voltage, dx)
+        
+        corrInt = epscalc.minus_integration(intVal)
         zeroValue = sum(corrInt)/len(corrInt)
-        ic(zeroValue)
-    
+            
         finInt = []
         for value in corrInt:
-            finInt.append(value-zeroValue)
+            finInt.append((value-zeroValue)/(coefSet[2]*coefSet[3]))
 
-        finInt.insert(0, -zeroValue)
+        finInt.insert(0, -zeroValue/(coefSet[2]*coefSet[3]))
         allInt.append(finInt)
 
-    return (allInt, current)
+    return (allInt, allCurrent)
 
 #функция интегрирования методом трапеции
 def trapezoidal_integration (n, y, dx):
@@ -161,10 +193,24 @@ def graph(avgCurrent, avgInt):
 
 if __name__ == "__main__":
 
+    df = pd.read_csv('rawdata_2025-04-02_13-54_30000@400Hz_1600mV.csv', sep = ',')
+
     key = 1 #показатель вычисления потерь, должен запускаться на индукции насыщения
-    df = pd.read_csv('rawdata_2025-04-01_11-54_50Hz_10mks_1V.csv', sep = ',')
-    Bmax, avgCurrent, avgInt, powerLosses = epscalc.run (df, 50, key)
+    
+    freq = 400
+    configNumber = 1
+    x = 0.25/1000
+    y = 30/1000
+    N = 1
+    ro = 7830
+    
+    #plt.plot(df.ch_A)
+    #plt.plot(df.ch_B)
+    sampleParameters = [x, y, N, ro]
+    runParameters = [df, freq, key, configNumber, sampleParameters]
+    Bmax, avgCurrent, avgInt, powerLosses = epscalc.run (runParameters)
     epscalc.graph(avgCurrent, avgInt)
     ic.enable()
     ic(Bmax)
     ic(powerLosses)
+    #plt.show()
