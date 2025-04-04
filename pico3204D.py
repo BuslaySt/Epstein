@@ -293,12 +293,12 @@ class Picoscope3204D:
             print("выход за пределы измерения канала B")    
             return False
 
-    def save_data(self, df: pd.DataFrame):
+    def save_data(self, df: pd.DataFrame, frequency, amplitude):
         """
         Close the Picoscope device.
         """
         filename = time.strftime("%Y-%m-%d_%H-%M")
-        df.to_csv(f"rawdata_{filename}_{self.maxsamples}@{self.frequency}Hz_{int(self.amplitude/1000)}mV.csv")
+        df.to_csv(f"rawdata_{filename}@{frequency}Hz_{int(amplitude/1000)}mV.csv")
 
     def close(self):
         """
