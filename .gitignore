@@ -11,3 +11,6 @@ pico_test2.py
 /Daniil
 /data1
 /__pycache__
+/bin
+/Petrov
+*.csv
