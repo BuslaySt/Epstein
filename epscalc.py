@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from icecream import ic
 import epscalc
+
 #v1.1
 
 ic.disable()
@@ -16,7 +17,7 @@ def run (runParameters):
     '''
     
     #!!константы для данной реализации измерительной установки
-    l = 0.39 #длина полосы стали, константа для образца аппарата Эпштейна
+    l = 390/1000 #длина полосы стали, константа для образца аппарата Эпштейна
     measuringCoilCount = 50 #количество витков в измерительной катушке
     
     df, freq, key, configNumber, test_parameters = runParameters
@@ -27,17 +28,17 @@ def run (runParameters):
     ersted2Am = 9.8*79.57 #пересчет из Эрстед в А/м, 9.8 - множитель для конкретного набора катушек
     match configNumber:
         case 1: #150:50
-            confCoef = 1/(0.75*ersted2Am)
+            configCoef = (0.75*ersted2Am)
             ratio = 3 
         case 2: #100:50
-            confCoef = 1/(0.5*ersted2Am)
+            configCoef = (0.5*ersted2Am)
             ratio = 2
         case 3: #50:50
-            confCoef = 1/(0.25*ersted2Am)
+            configCoef = (0.25*ersted2Am)
             ratio = 1
     
     bCoef = N*x*y #приведение потока к индукции
-    coefSet = [currentCoef, confCoef, bCoef, coilCoef]
+    coefSet = [currentCoef, configCoef, bCoef, coilCoef]
     timeset = 10**9 #
     period = timeset/freq
     time_coef = 10**-9 
@@ -58,7 +59,6 @@ def run (runParameters):
         ic(mass)
         powerLosses = epscalc.powerloss_calculation(df, startIndices, finishIndices, currentCoef)*ratio/mass
 
-
     return Bmax, avgCurrent, avgInt, powerLosses
 
 
@@ -76,7 +76,7 @@ def get_periods (df, period_number, period):
         finishTime = startTime + period
         
         for i in df.index:
-            if abs(df['time'][i] - round(finishTime, 3)) < 0.0001:
+            if abs(df['time'][i] - finishTime) < 1:
                 finishIndex = i
             
         finishIndices.append(finishIndex)
@@ -95,11 +95,10 @@ def powerloss_calculation (df, startIndices, finishIndices, currentCoef):
     
     avgCurrent = epscalc.array_averaging(current)
     avgVoltage = epscalc.array_averaging(voltage)
-    losses = []
-    for i in range(len(avgCurrent)):
-        losses.append(avgCurrent[i]*avgVoltage[i]*currentCoef/10**6) #10**6 - коэффициент приведения величин, собранных АЦП, из мВ в В
     
-    avgLosses = sum(losses)/len(losses)
+    current = np.array(avgCurrent)
+    voltage = np.array(avgVoltage)
+    avgLosses = np.mean(current*voltage*currentCoef/10**6)
 
     return (avgLosses)    
         
@@ -193,11 +192,11 @@ def graph(avgCurrent, avgInt):
 
 if __name__ == "__main__":
 
-    df = pd.read_csv('rawdata_2025-04-02_13-54_30000@400Hz_1600mV.csv', sep = ',')
+    df = pd.read_csv('rawdata_2025-04-03_12-43_50000@50Hz_1500mV.csv', sep = ',')
 
     key = 1 #показатель вычисления потерь, должен запускаться на индукции насыщения
     
-    freq = 400
+    freq = 50
     configNumber = 1
     x = 0.25/1000
     y = 30/1000
