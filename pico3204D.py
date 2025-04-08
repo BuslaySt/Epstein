@@ -39,7 +39,7 @@ class Picoscope3204D:
             assert_pico_ok(self.status["ChangePowerSource"])
         print("Picoscope initialized.")
         
-    def initialize_ports(self):
+    def initialize_ports(self, limitA=5, limitB=7):
         """
         Initialize the Picoscope ports A and B.
         """
@@ -59,7 +59,7 @@ class Picoscope3204D:
         # 8  == PS3000A_5V:    ±5 V
         # 9  == PS3000A_10V:   ±10 V
         # 10 == PS3000A_20V:   ±20 V
-        self.channelA_range = ps.PS3000A_RANGE['PS3000A_500MV']
+        self.channelA_range = limitA #ps.PS3000A_RANGE['PS3000A_500MV']
         analogue_offset = 0 # 0 V
 
         self.status["setChA"] = ps.ps3000aSetChannel(self.chandle,
@@ -75,7 +75,7 @@ class Picoscope3204D:
         channel = ps.PS3000A_CHANNEL['PS3000A_CHANNEL_B'] # == 1
         enabled = 1
         coupling_type = ps.PS3000A_COUPLING['PS3000A_DC'] # = PS3000A_DC == 1
-        self.channelB_range = ps.PS3000A_RANGE['PS3000A_2V']
+        self.channelB_range = limitB # ps.PS3000A_RANGE['PS3000A_2V']
         analogue_offset = 0 # 0 V
 
         self.status["setChB"] = ps.ps3000aSetChannel(self.chandle,
@@ -285,13 +285,13 @@ class Picoscope3204D:
                         10 : 20000}
         if (df.min()['ch_A'] > -power_range[self.channelA_range]) and (df.max()['ch_A'] < power_range[self.channelA_range]) and (df.min()['ch_B'] > -power_range[self.channelB_range]) and (df.max()['ch_B'] < power_range[self.channelB_range]):
             print("В пределах измерений каналов")
-            return True
+            return 0
         if (df.min()['ch_A'] <= -power_range[self.channelA_range]) or (df.max()['ch_A'] >= power_range[self.channelA_range]):
             print("выход за пределы измерения канала А")
-            return False
+            return 1
         if (df.min()['ch_B'] <= -power_range[self.channelB_range]) or (df.max()['ch_B'] >= power_range[self.channelB_range]):
             print("выход за пределы измерения канала B")    
-            return False
+            return 2
 
     def save_data(self, df: pd.DataFrame, frequency, amplitude):
         """
