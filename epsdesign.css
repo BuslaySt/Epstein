@@ -50,3 +50,7 @@ QGroupBox::title {
     font-weight: bold;
     color: #ffffff; /* Белый текст */
 }
+QStatusBar {
+    font-size: 14px;
+    color: #ffffff; /* Белый текст */
+}
