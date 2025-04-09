@@ -158,20 +158,19 @@ class MainUI(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    epstein = MainUI()
-    epstein.show()
+    
     try:
+        epstein = MainUI()
+        epstein.show()
+        
         epstein.picoscope = Picoscope3204D()
         # epstein.init_pico()
+        sys.exit(app.exec_())
+
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"Критическая ошибка: {e}")
     finally:
         app.exec_()
-    
-    try:
-        epstein.picoscope.close()
-    except Exception as e:
-        print(f"An error occurred: {e}")
-    
-    print(f"pico closed")
-    # sys.exit()
+        if hasattr(epstein, 'picoscope') and epstein.picoscope:
+            epstein.picoscope.close()
+            print("Picoscope успешно закрыт")
