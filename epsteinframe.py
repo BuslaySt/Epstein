@@ -170,7 +170,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Критическая ошибка: {e}")
     finally:
-        app.exec_()
         if hasattr(epstein, 'picoscope') and epstein.picoscope:
             epstein.picoscope.close()
             print("Picoscope успешно закрыт")
