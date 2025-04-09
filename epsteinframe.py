@@ -1,8 +1,8 @@
-import sys
+import time, os, sys
 from PyQt5.QtWidgets import QMainWindow, QApplication
 from PyQt5.uic import loadUi
 import epscalc
-import time
+import matplotlib.pyplot as plt
 from pico3204D import Picoscope3204D
 
 class MainUI(QMainWindow):
@@ -64,11 +64,14 @@ class MainUI(QMainWindow):
 
         self.amp = 500000 # начальная амплитуда в мкВ
         key = 0 # соответствие измеренной Вм и заданной Вм меняется на 1 по достижении заданной величины индукции, запускает измерение потерь.
+        step = 0
+        ampincrement = 50000
 
         try:
             # цикл увеличения амплитуды генератора до достижения целевой индукции
             while not key:
-                self.amp += 50000
+                step += 1
+                self.amp += ampincrement
                 self.picoscope.initialize_ports(limitA=self.limitA, limitB=self.limitB)
                 self.picoscope.setup_generator(self.freq, amplitude=self.amp)
 
@@ -79,20 +82,20 @@ class MainUI(QMainWindow):
                 check = self.picoscope.check_limits(self.data)
                 if check == 1:
                     self.limitA += 1
-                    self.amp -= 50000
+                    self.amp -= ampincrement
                     continue
                 elif check == 2:
                     self.limitB += 1
-                    self.amp -= 50000
+                    self.amp -= ampincrement
                     continue
 
                 sampleParameters = [x, y, N, ro]
                 runParameters = [self.data, self.freq, key, configNumber, sampleParameters]
                 result = epscalc.run(runParameters)
                 Bmax = result[0]
-                
                 print(Bmax)
-                if Bmax >= B or self.amp >= 4000000:
+
+                if Bmax >= B or self.amp >= 4000000 or step > 10:
                     key = 1
                 
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
@@ -108,8 +111,8 @@ class MainUI(QMainWindow):
             self.powerLosses = result[3]
 
             #all histeresis saved to file
-            self.allH.append(H)
-            self.allB.append(B)
+            self.allH.append(self.H)
+            self.allB.append(self.B)
 
             print(self.Bmax, self.powerLosses)
             self.plotData()
@@ -126,6 +129,7 @@ class MainUI(QMainWindow):
             print(f"Что-то пошло не так: {e}")
 
     def plotData(self):
+        '''- Вывод графика в GUI -'''
         # self.graphWidget.clear()
         styles = {'color': 'black', 'font-size': '12px'}
         self.graphWidget.setLabel('left', "B", **styles)
@@ -136,6 +140,7 @@ class MainUI(QMainWindow):
         self.pltData = self.graphWidget.plot(x = self.H, y = self.B, pen = 'b')#, symbol = 'o')
 
     def saveImg(self):
+        '''- Сохранение картинки графика -'''
         graphDir = 'graph'
         filename = time.strftime("%Y-%m-%d_%H-%M")
         os.makedirs(graphDir, exist_ok = True)
@@ -158,10 +163,15 @@ if __name__ == "__main__":
     try:
         epstein.picoscope = Picoscope3204D()
         # epstein.init_pico()
-        sys.exit(app.exec_())
     except Exception as e:
         print(f"An error occurred: {e}")
-        sys.exit(app.exec_())
     finally:
+        app.exec_()
+    
+    try:
         epstein.picoscope.close()
-        print(f"pico closed")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    
+    print(f"pico closed")
+    # sys.exit()
