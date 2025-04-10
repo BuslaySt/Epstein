@@ -53,7 +53,7 @@ class MainUI(QMainWindow):
 
         self.lbl_Bmax.clear()
         self.lbl_powerLosses.clear()
-
+        
         # Параметры пластин из интерфейса задаются пользователем
         x = float(self.lEd_x.text().replace(',','.'))/1000 # толщина, мм в м
         y = float(self.lEd_y.text().replace(',','.'))/1000 # ширина, мм в м
@@ -97,7 +97,7 @@ class MainUI(QMainWindow):
                 Bmax = result[0]
                 print(Bmax)
 
-                if Bmax >= B or self.amp >= 4000000 or step > 20:
+                if Bmax >= B or self.amp >= 4000000 or step > 30: # шагов на достижение целевого значения
                     key = 1
                 
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
@@ -111,8 +111,9 @@ class MainUI(QMainWindow):
             self.H = result[1]
             self.B = result[2]
             self.powerLosses = result[3]
-            self.lbl_Bmax.setText(f'Индукция - {self.Bmax} Тл')
-            self.lbl_powerLosses.setText(f'Потери - {self.powerLosses} Вт/кг')
+            
+            self.lbl_Bmax.setText(f'Индукция - {round(self.Bmax, 2)} Тл')
+            self.lbl_powerLosses.setText(f'Потери - {round(self.powerLosses, 2)} Вт/кг')
             
             #all histeresis saved to file
             self.listOfH.append(self.H)
@@ -129,7 +130,9 @@ class MainUI(QMainWindow):
             self.picoscope.save_data(self.data, self.freq, self.amp)
             self.saveImg()
             self.graphWidget.clear() # очистка графика
-            self.lists2zero() # очистка списков срезультатами измерений
+            self.lbl_Bmax.clear()
+            self.lbl_powerLosses.clear()
+            self.lists2zero() # очистка списков с результатами измерений
             print("Результат сохранён")
         except Exception as e:
             print(f"Что-то пошло не так при сохранении: {e}")
