@@ -25,12 +25,10 @@ class MainUI(QMainWindow):
         '''//ИП
         секция графика пока не в окончательном состоянии - возможны манипуляции
         '''
+        self.lists2zero() # обнуление списков с результатами серии измерений
         #график
-        self.graphWidget.clear()
         self.graphWidget.setBackground('w')
-        #all hist data
-        self.allH = []
-        self.allB = []
+        
 
     def init_pico(self):
         '''- Инициализация осциллографа Picoscope3204D и подключение портов -'''
@@ -45,6 +43,7 @@ class MainUI(QMainWindow):
     def start(self):
         '''- Измерения -'''
         # При нажатии кнопки "Начать измерения" запускаем цикл измерений
+        
         print("Начало измерений")
         # Рабочая частота и целевая индукция задаются пользователем в интерфейсе
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
@@ -57,7 +56,7 @@ class MainUI(QMainWindow):
         y = float(self.lEd_y.text().replace(',','.'))/1000 # ширина, мм в м
         N = int(self.lEd_N.text().replace(',','.')) # количество слоев полос, уложенных в рамку
         ro = float(self.lEd_ro.text().replace(',','.')) # плотность материала
-
+        
         self.limitA = 5 # 500mV на канал А
         self.limitB = 7 # 2V на канал B
         self.picoscope.initialize_ports(limitA=self.limitA, limitB=self.limitB)
@@ -111,8 +110,8 @@ class MainUI(QMainWindow):
             self.powerLosses = result[3]
 
             #all histeresis saved to file
-            self.allH.append(self.H)
-            self.allB.append(self.B)
+            self.listOfH.append(self.H)
+            self.listOfB.append(self.B)
 
             print(self.Bmax, self.powerLosses)
             self.plotData()
@@ -124,13 +123,15 @@ class MainUI(QMainWindow):
         try:
             self.picoscope.save_data(self.data, self.freq, self.amp)
             self.saveImg()
+            self.graphWidget.clear() # очистка графика
+            self.lists2zero() # очистка списков срезультатами измерений
             print("Результат сохранён")
         except Exception as e:
             print(f"Что-то пошло не так: {e}")
 
     def plotData(self):
         '''- Вывод графика в GUI -'''
-        # self.graphWidget.clear()
+        
         styles = {'color': 'black', 'font-size': '12px'}
         self.graphWidget.setLabel('left', "B", **styles)
         self.graphWidget.setLabel('bottom', "H", **styles)
@@ -149,13 +150,18 @@ class MainUI(QMainWindow):
         plt.xlabel("H")
         plt.ylabel("B")
 
-        for H, B in zip(self.allH, self.allB):
+        for H, B in zip(self.listOfH, self.listOfB):
             plt.plot(H, B, linewidth = 0.3, color = 'orange')
         
         plt.savefig(os.path.join(graphDir, f"{filename}_hister.jpg"), dpi = 600)
         plt.close()
         print('График сохранен успешно')
 
+    def lists2zero(self):
+        '''- Очистка списков с результатами измерений-'''
+        self.listOfH = []
+        self.listOfB = []
+        
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     
