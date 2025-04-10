@@ -51,6 +51,9 @@ class MainUI(QMainWindow):
         B = float(self.lEd_B.text().replace(',','.')) # магнитная индукция, Тл
         configNumber = int(self.cBox_conf.currentText()) # номер конфигурации катушек на выбор 1 из 3, выбор из списка
 
+        self.lbl_Bmax.clear()
+        self.lbl_powerLosses.clear()
+
         # Параметры пластин из интерфейса задаются пользователем
         x = float(self.lEd_x.text().replace(',','.'))/1000 # толщина, мм в м
         y = float(self.lEd_y.text().replace(',','.'))/1000 # ширина, мм в м
