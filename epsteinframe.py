@@ -108,7 +108,9 @@ class MainUI(QMainWindow):
             self.H = result[1]
             self.B = result[2]
             self.powerLosses = result[3]
-
+            self.lbl_Bmax.setText(f'Индукция - {self.Bmax} Тл')
+            self.lbl_powerLosses.setText(f'Потери - {self.powerLosses} Вт/кг')
+            
             #all histeresis saved to file
             self.listOfH.append(self.H)
             self.listOfB.append(self.B)
