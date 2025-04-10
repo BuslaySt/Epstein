@@ -94,7 +94,7 @@ class MainUI(QMainWindow):
                 Bmax = result[0]
                 print(Bmax)
 
-                if Bmax >= B or self.amp >= 4000000 or step > 10:
+                if Bmax >= B or self.amp >= 4000000 or step > 20:
                     key = 1
                 
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
@@ -116,7 +116,7 @@ class MainUI(QMainWindow):
             print(self.Bmax, self.powerLosses)
             self.plotData()
         except Exception as e:
-            print(f"Что-то пошло не так: {e}")
+            print(f"Что-то пошло не так при измерениях: {e}")
 
     def save(self):
         # Обработка нажатия кнопки "Сохранить результат"
@@ -127,7 +127,7 @@ class MainUI(QMainWindow):
             self.lists2zero() # очистка списков срезультатами измерений
             print("Результат сохранён")
         except Exception as e:
-            print(f"Что-то пошло не так: {e}")
+            print(f"Что-то пошло не так при сохранении: {e}")
 
     def plotData(self):
         '''- Вывод графика в GUI -'''
