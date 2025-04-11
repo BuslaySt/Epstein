@@ -6,41 +6,37 @@ from picosdk.ps3000a import ps3000a as ps
 from picosdk.functions import adc2mV, assert_pico_ok
 import matplotlib.pyplot as plt
 
-
 class Picoscope3204D:
     # Константы для удобства
-    CHANNEL_RANGES = {
-        0: 10,
-        1: 20,
-        2: 50,
-        3: 100,
-        4: 200,
-        5: 500,
-        6: 1000,
-        7: 2000,
-        8: 5000,
-        9: 10000,
-        10: 20000
-    }
+    POWER_RANGE = { 0  : 10,    # нет такого
+                    1  : 20,    # нет такого
+                    2  : 50,
+                    3  : 100,
+                    4  : 200,
+                    5  : 500,
+                    6  : 1000,
+                    7  : 2000,
+                    8  : 5000,
+                    9  : 10000,
+                    10 : 20000}
     
     DEFAULT_SAMPLE_RATE = 1252  # соответствует 10 мкс
     DEFAULT_MAX_SAMPLES = 20000
-
     def __init__(self):
-        """Initialize the Picoscope device."""
+        """
+        Initialize the Picoscope device.
+        """
         # Create chandle and status ready for use
         self.status = {}
         self.chandle = ctypes.c_int16() # device identifier returned by ps3000aOpenUnit
-        self._initialize_device()
 
-    def _initialize_device(self):
-        """Internal method to initialize the PicoScope device."""
         # Opens the device
         self.status["openunit"] = ps.ps3000aOpenUnit(ctypes.byref(self.chandle), None)
-        
+
+        # Проверка питания по USB
         try:
             assert_pico_ok(self.status["openunit"])
-        except Exception as e:
+        except:
             # powerstate becomes the status number of openunit
             powerstate = self.status["openunit"]
             # If powerstate is the same as 282 then it will run this if statement
@@ -54,84 +50,88 @@ class Picoscope3204D:
                 print("PICO_USB3_0_DEVICE_NON_USB3_0_PORT")
                 self.status["ChangePowerSource"] = ps.ps3000aChangePowerSource(self.chandle, 286)
             else:
-                raise RuntimeError(f"Unable to open Picoscope device. Error code: {powerstate} : {e}")
-            
+                raise RuntimeError("Unable to open Picoscope device.")
             assert_pico_ok(self.status["ChangePowerSource"])
-        
         print("Picoscope initialized successfully.")
-
-    def configure_channels(self, channel_a_range=5, channel_b_range=7):
+        
+    def initialize_ports(self, channelA_range=5, channelB_range=7):
         """
         Configure the Picoscope channels A and B with specified ranges.
         
         Args:
-            channel_a_range (int): Range index for channel A (default 5 = ±500mV)
-            channel_b_range (int): Range index for channel B (default 7 = ±2V)
+            channel_A_range (int): Range index for channel A (default 5 = ±500mV)
+            channel_B_range (int): Range index for channel B (default 7 = ±2V)
         """
-        self.channel_a_range = channel_a_range
-        self.channel_b_range = channel_b_range
-        
-        # Configure Channel A
-        self._set_channel(
-            channel='A',
-            enabled=True,
-            coupling=ps.PS3000A_COUPLING['PS3000A_DC'],
-            range_index=channel_a_range
-        )
-        
-        # Configure Channel B
-        self._set_channel(
-            channel='B',
-            enabled=True,
-            coupling=ps.PS3000A_COUPLING['PS3000A_DC'],
-            range_index=channel_b_range
-        )
+        # Set up channel A
+        # handle = chandle
+        channel = ps.PS3000A_CHANNEL['PS3000A_CHANNEL_A'] # = 0
+        enabled = 1
+        coupling_type = ps.PS3000A_COUPLING['PS3000A_DC'] # = PS3000A_DC == 1
+        # 0  == PS3000A_10MV:  ±10 mV - нет
+        # 1  == PS3000A_20MV:  ±20 mV - нет
+        # 2  == PS3000A_50MV:  ±50 mV
+        # 3  == PS3000A_100MV: ±100 mV
+        # 4  == PS3000A_200MV: ±200 mV
+        # 5  == PS3000A_500MV: ±500 mV
+        # 6  == PS3000A_1V:    ±1 V
+        # 7  == PS3000A_2V:    ±2 V
+        # 8  == PS3000A_5V:    ±5 V
+        # 9  == PS3000A_10V:   ±10 V
+        # 10 == PS3000A_20V:   ±20 V
+        self.channelA_range = channelA_range #ps.PS3000A_RANGE['PS3000A_500MV']
+        analogue_offset = 0 # 0 V
 
-    def _set_channel(self, channel, enabled, coupling, range_index):
-        """Internal method to configure a single channel."""
-        channel_name = f'PS3000A_CHANNEL_{channel.upper()}'
-        status_key = f"setCh{channel.upper()}"
-        
-        self.status[status_key] = ps.ps3000aSetChannel(
-            self.chandle,
-            ps.PS3000A_CHANNEL[channel_name],
-            int(enabled),
-            coupling,
-            range_index,
-            0  # analogue_offset
-        )
-        assert_pico_ok(self.status[status_key])
+        self.status["setChA"] = ps.ps3000aSetChannel(self.chandle,
+                                                ps.PS3000A_CHANNEL['PS3000A_CHANNEL_A'],
+                                                enabled,
+                                                coupling_type,
+                                                self.channelA_range,
+                                                analogue_offset)
+        assert_pico_ok(self.status["setChA"])
+
+        # Set up channel B
+        # handle = chandle
+        channel = ps.PS3000A_CHANNEL['PS3000A_CHANNEL_B'] # == 1
+        enabled = 1
+        coupling_type = ps.PS3000A_COUPLING['PS3000A_DC'] # = PS3000A_DC == 1
+        self.channelB_range = channelB_range # ps.PS3000A_RANGE['PS3000A_2V']
+        analogue_offset = 0 # 0 V
+
+        self.status["setChB"] = ps.ps3000aSetChannel(self.chandle,
+                                                channel,
+                                                enabled,
+                                                coupling_type,
+                                                self.channelB_range,
+                                                analogue_offset)
+        assert_pico_ok(self.status["setChB"])
 
     def setup_trigger(self, channel='B', threshold=0, direction='RISING', delay=0, auto_trigger_ms=1000):
         """
         Set up a simple trigger on the specified channel.
         
         Args:
-            channel (str): Channel to trigger on ('A' or 'B')
+            source (str): Channel to trigger on ('A' or 'B')
             threshold (int): ADC count threshold for trigger
             direction (str): Trigger direction ('RISING', 'FALLING', 'RISING_LOWER', 'OUTSIDE', etc.)
             delay (int): Delay in samples between trigger and first sample
             auto_trigger_ms (int): Auto-trigger timeout in milliseconds
         """
-        channel_name = f'PS3000A_CHANNEL_{channel.upper()}'
-        direction_name = f'PS3000A_{direction.upper()}'
-        
-        self.status["trigger"] = ps.ps3000aSetSimpleTrigger(
-            self.chandle,                       # handle
-            1,                                  # enabled
-            ps.PS3000A_CHANNEL[channel_name],   # source
-            threshold,
-            ps.PS3000A_THRESHOLD_DIRECTION[direction_name], # direction
-            delay,
-            auto_trigger_ms
-        )
+        # Handle = Chandle ; device identifier returned by ps3000aOpenUnit
+        enable = 1 ; zero to disable the trigger; any other value to set the trigger
+        # Source = ps3000A_channel_B = 1 ; the channel on which to trigger
+        source = f'PS3000A_CHANNEL_{channel.upper()}'
+        # Threshold = 1024 ADC counts ; the ADC count at which the trigger will fire
+        # Direction = ps3000A_Falling = 3 ; the direction in which the signal must move to cause a trigger.
+        # Direction = ps3000A_Rising = 2 ; The following directions are supported: ABOVE, BELOW, RISING, FALLING and RISING_OR_FALLING.
+        # Delay = 0 ; the time between the trigger occurring and the first sample.
+        # autoTrigger_ms = 1000 ; the number of milliseconds the device will wait if no trigger occurs
+        self.status["trigger"] = ps.ps3000aSetSimpleTrigger(self.chandle, enable, source, 0, ps.PS3000A_THRESHOLD_DIRECTION['PS3000A_RISING'], 0, 1000)
         assert_pico_ok(self.status["trigger"])
-        
+
+        print('Trigger set up on chB')
         print(f'Trigger set up on channel {channel} ({direction} at {threshold} ADC counts)')
 
-    def setup_signal_generator(self, frequency=50, amplitude=1000000, 
-                              wave_type='SINE', offset_voltage=0, 
-                              sweep_type='NONE', trigger_type='NONE'):
+    def setup_generator(self, frequency=50, amplitude=1000000) -> None:
         """
         Set up the built-in signal generator.
         
@@ -143,37 +143,36 @@ class Picoscope3204D:
             sweep_type (str): Sweep type ('UP', 'DOWN', 'UPDOWN', 'NONE')
             trigger_type (str): Trigger type ('RISING', 'FALLING', 'NONE')
         """
-        self.generator_frequency = frequency
-        self.generator_amplitude = amplitude
-        
-        wave_type_code = ctypes.c_int16(ps.PS3000A_WAVE_TYPE[f'PS3000A_{wave_type.upper()}'])
-        sweep_type_code = ctypes.c_int32(ps.PS3000A_SWEEP_TYPE[f'PS3000A_{sweep_type.upper()}'])
-        trigger_type_code = ctypes.c_int32(ps.PS3000A_SIGGEN_TRIG_TYPE[f'PS3000A_SIGGEN_{trigger_type.upper()}'])
-        
-        self.status["SetSigGenBuiltIn"] = ps.ps3000aSetSigGenBuiltIn(
-            self.chandle,
-            offset_voltage,
-            amplitude,              # pkToPk
-            wave_type_code,
-            frequency,
-            frequency,  # stop frequency (same as start for no sweep)
-            0,  # increment
-            1,  # dwell time
-            sweep_type_code,
-            0,  # operation
-            4,  # shots (0 = infinite)
-            0,  # sweeps
-            trigger_type_code,
-            ctypes.c_int32(0),  # triggerSource = NONE
-            1   # extInThreshold
-        )
+        # Output a sine wave with peak-to-peak voltage of 2 V and frequency of 10 kHz
+        # handle = chandle
+        # offsetVoltage = 0
+        # pkToPk = +-2000000 ; max +-2 V
+        self.amplitude = amplitude
+        # waveType = ctypes.c_int16(0) = PS3000A_SINE
+        wavetype = ctypes.c_int16(0)
+        # startFrequency = 50 Hz
+        # stopFrequency = 50 Hz
+        self.frequency = frequency
+        # increment = 0
+        # dwellTime = 1
+        # sweepType = ctypes.c_int16(1) = PS3000A_UP
+        sweepType = ctypes.c_int32(0)
+        # operation = 0
+        # shots = 0
+        # sweeps = 0
+        # triggerType = ctypes.c_int16(0) = PS3000A_SIGGEN_RISING
+        triggertype = ctypes.c_int32(0)
+        # triggerSource = ctypes.c_int16(0) = P3000A_SIGGEN_NONE
+        triggerSource = ctypes.c_int32(0)
+        # extInThreshold = 1
+        self.status["SetSigGenBuiltIn"] = ps.ps3000aSetSigGenBuiltIn(self.chandle, 0, self.amplitude, wavetype, self.frequency, self.frequency, 0, 1, sweepType, 0, 4, 0, triggertype, triggerSource, 1)
         assert_pico_ok(self.status["SetSigGenBuiltIn"])
-        
-        print(f"Signal generator configured: {frequency} Hz, {amplitude/1000} mV {wave_type.lower()} wave")
 
-    def capture_data(self, max_samples=None, sample_rate=None):
+        print(f"Generator set up with {frequency} Hz and {amplitude/1000} mV.")
+    
+    def read_data(self, max_samples=DEFAULT_MAX_SAMPLES, sample_rate=DEFAULT_SAMPLE_RATE) -> pd.DataFrame:
         """
-        Capture data from the configured channels.
+        Read data samples from the Pico device.
         
         Args:
             max_samples (int): Number of samples to capture
@@ -182,197 +181,210 @@ class Picoscope3204D:
         Returns:
             pd.DataFrame: DataFrame with time, ch_A and ch_B columns
         """
-        max_samples = max_samples or self.DEFAULT_MAX_SAMPLES
-        sample_rate = sample_rate or self.DEFAULT_SAMPLE_RATE
-        
-        # Configure timebase
-        time_interval_ns = ctypes.c_float()
-        returned_max_samples = ctypes.c_int16()
-        
-        self.status["GetTimebase"] = ps.ps3000aGetTimebase2(
-            self.chandle,
-            sample_rate,
-            max_samples,
-            ctypes.byref(time_interval_ns),
-            1,  # oversample
-            ctypes.byref(returned_max_samples),
-            0   # segment index
-        )
+        # Setting the number of samples to be collected
+        preTriggerSamples = 0
+        postTriggerSamples = max_samples
+        # maxsamples = preTriggerSamples + postTriggerSamples
+        self.maxsamples = max_samples
+
+        # Gets timebase infomation
+        # WARNING: When using this example it may not be possible to access all Timebases as all channels are enabled by default when opening the scope.  
+        # To access these Timebases, set any unused analogue channels to off.
+        # Handle = chandle
+        # Timebase = 2 = timebase
+        # Nosample = maxsamples
+        # TimeIntervalNanoseconds = ctypes.byref(timeIntervalns)
+        # MaxSamples = ctypes.byref(returnedMaxSamples)
+        # Segement index = 0
+        self.timebase = sample_rate # 1252 == 10 mks
+        timeIntervalns = ctypes.c_float()
+        returnedMaxSamples = ctypes.c_int16()
+        self.status["GetTimebase"] = ps.ps3000aGetTimebase2(self.chandle, self.timebase, self.maxsamples, ctypes.byref(timeIntervalns), 1, ctypes.byref(returnedMaxSamples), 0)
         assert_pico_ok(self.status["GetTimebase"])
 
-        # Setup buffers
-        buffer_a = (ctypes.c_int16 * max_samples)()
-        buffer_b = (ctypes.c_int16 * max_samples)()
-        
-        self._setup_data_buffers(buffer_a, buffer_b, max_samples)
-        
-        # Start capture
-        self._run_block_capture(max_samples, sample_rate)
-        
-        # Retrieve data
-        samples_read = self._retrieve_data(max_samples)
-        
-        # Convert to mV
-        max_adc = self._get_max_adc_value()
-        ch_a_mv = adc2mV(buffer_a, self.channel_a_range, max_adc)
-        ch_b_mv = adc2mV(buffer_b, self.channel_b_range, max_adc)
-        
-        # Create time axis
-        time_axis = np.linspace(0, (samples_read - 1) * time_interval_ns.value, samples_read)
-        
-        return pd.DataFrame({
-            'time': time_axis,
-            'ch_A': ch_a_mv,
-            'ch_B': ch_b_mv
-        })
+        # Creates a overlow location for data
+        overflow = ctypes.c_int16()
+        # Creates converted types maxsamples
+        cmaxSamples = ctypes.c_int32(self.maxsamples)
 
-    def _setup_data_buffers(self, buffer_a, buffer_b, max_samples):
-        """Internal method to setup data buffers for both channels."""
-        self.status["setDataBuffersA"] = ps.ps3000aSetDataBuffers(
-            self.chandle,
-            ps.PS3000A_CHANNEL['PS3000A_CHANNEL_A'],
-            ctypes.byref(buffer_a),
-            None,
-            max_samples,
-            0,  # segment index
-            ps.PS3000A_RATIO_MODE['PS3000A_RATIO_MODE_NONE']
-        )
-        assert_pico_ok(self.status["setDataBuffersA"])
-        
-        self.status["setDataBuffersB"] = ps.ps3000aSetDataBuffers(
-            self.chandle,
-            ps.PS3000A_CHANNEL['PS3000A_CHANNEL_B'],
-            ctypes.byref(buffer_b),
-            None,
-            max_samples,
-            0,  # segment index
-            ps.PS3000A_RATIO_MODE['PS3000A_RATIO_MODE_NONE']
-        )
-        assert_pico_ok(self.status["setDataBuffersB"])
-
-    def _run_block_capture(self, max_samples, sample_rate):
-        """Internal method to start block capture."""
-        self.status["runblock"] = ps.ps3000aRunBlock(
-            self.chandle,
-            0,  # preTriggerSamples
-            max_samples,  # postTriggerSamples
-            sample_rate,
-            1,  # timebase
-            None,  # time indisposed ms
-            0,  # segment index
-            None,  # lpRead
-            None  # pParameter
-        )
+        # Starts the block capture
+        # Handle = chandle
+        # Number of prTriggerSamples
+        # Number of postTriggerSamples
+        # Timebase = 2 = 4ns (see Programmer's guide for more information on timebases)
+        # time indisposed ms = None (This is not needed within the example)
+        # Segment index = 0
+        # LpRead = None
+        # pParameter = None
+        self.status["runblock"] = ps.ps3000aRunBlock(self.chandle, preTriggerSamples, postTriggerSamples, self.timebase, 1, None, 0, None, None)
         assert_pico_ok(self.status["runblock"])
 
-    def _retrieve_data(self, max_samples):
-        """Internal method to retrieve captured data."""
-        # Wait for capture to complete
-        ready = ctypes.c_int16(0)
-        while not ready.value:
-            self.status["isReady"] = ps.ps3000aIsReady(self.chandle, ctypes.byref(ready))
-        
-        # Get the values
-        samples_read = ctypes.c_int32(max_samples)
+        # Create buffers ready for assigning pointers for data collection
+        # bufferAMax = np.zeros(shape=sizeOfOneBuffer, dtype=np.int16)
+        # bufferBMax = np.zeros(shape=sizeOfOneBuffer, dtype=np.int16)
+
+        # Create buffers ready for assigning pointers for data collection
+        bufferAMax = (ctypes.c_int16 * self.maxsamples)()
+        # bufferAMin = (ctypes.c_int16 * self.maxsamples)() # used for downsampling
+        bufferBMax = (ctypes.c_int16 * self.maxsamples)()
+        # bufferBMin = (ctypes.c_int16 * self.maxsamples)() # used for downsampling
+
+
+        # Set data buffer location for data collection from channel A
+        # handle = chandle
+        # source = PS3000A_CHANNEL_A = 0
+        # pointer to buffer max = ctypes.byref(bufferAMax)
+        # pointer to buffer min = ctypes.byref(bufferAMin)
+        # buffer length = maxSamples
+        # segment index = 0
+        # ratio mode = PS3000A_RATIO_MODE_NONE = 0
+        # self.status["SetDataBuffers"] = ps.ps3000aSetDataBuffers(self.chandle, 0, ctypes.byref(bufferAMax), ctypes.byref(bufferAMin), maxsamples, 0, 0)
+        # assert_pico_ok(self.status["SetDataBuffers"])
+        self.status["setDataBuffersA"] = ps.ps3000aSetDataBuffers(self.chandle,
+                                                            ps.PS3000A_CHANNEL['PS3000A_CHANNEL_A'],
+                                                            ctypes.byref(bufferAMax), #bufferAMax.ctypes.data_as(ctypes.POINTER(ctypes.c_int16)),
+                                                            None,
+                                                            self.maxsamples,
+                                                            0,
+                                                            ps.PS3000A_RATIO_MODE['PS3000A_RATIO_MODE_NONE'])
+        assert_pico_ok(self.status["setDataBuffersA"])
+
+        # Set data buffer location for data collection from channel B
+        # source = PS3000A_CHANNEL_B = 1
+        self.status["setDataBuffersB"] = ps.ps3000aSetDataBuffers(self.chandle,
+                                                            ps.PS3000A_CHANNEL['PS3000A_CHANNEL_B'],
+                                                            ctypes.byref(bufferBMax), #bufferBMax.ctypes.data_as(ctypes.POINTER(ctypes.c_int16)),
+                                                            None,
+                                                            self.maxsamples,
+                                                            0,
+                                                            ps.PS3000A_RATIO_MODE['PS3000A_RATIO_MODE_NONE'])
+
+        # Creates a overlow location for data
         overflow = (ctypes.c_int16 * 10)()
-        
-        self.status["GetValues"] = ps.ps3000aGetValues(
-            self.chandle,
-            0,  # start index
-            ctypes.byref(samples_read),
-            0,  # downSampleRatio
-            0,  # downSampleRatioMode
-            0,  # segment index
-            ctypes.byref(overflow)
-        )
+        # Creates converted types maxsamples
+        cmaxSamples = ctypes.c_int32(self.maxsamples)
+
+        # Checks data collection to finish the capture
+        # Wait for the block to complete
+        ready = ctypes.c_int16(0)
+        check = ctypes.c_int16(0)
+        while ready.value == check.value:
+            self.status["isReady"] = ps.ps3000aIsReady(self.chandle, ctypes.byref(ready))
+
+        # Handle = chandle
+        # start index = 0
+        # noOfSamples = ctypes.byref(cmaxSamples)
+        # DownSampleRatio = 0
+        # DownSampleRatioMode = 0
+        # SegmentIndex = 0
+        # Overflow = ctypes.byref(overflow)
+
+        self.status["GetValues"] = ps.ps3000aGetValues(self.chandle, 0, ctypes.byref(cmaxSamples), 0, 0, 0, ctypes.byref(overflow))
         assert_pico_ok(self.status["GetValues"])
-        
-        return samples_read.value
 
-    def _get_max_adc_value(self):
-        """Internal method to get the maximum ADC value."""
-        max_adc = ctypes.c_int16()
-        self.status["maximumValue"] = ps.ps3000aMaximumValue(self.chandle, ctypes.byref(max_adc))
+        # Finds the max ADC count
+        # Handle = chandle
+        # Value = ctype.byref(maxADC)
+        maxADC = ctypes.c_int16()
+        self.status["maximumValue"] = ps.ps3000aMaximumValue(self.chandle, ctypes.byref(maxADC))
         assert_pico_ok(self.status["maximumValue"])
-        return max_adc
 
-    def check_limits(self, data_frame):
+        # Converts ADC from channel A to mV
+        adc2mVChAMax =  adc2mV(bufferAMax, self.channelA_range, maxADC)
+        adc2mVChBMax = adc2mV(bufferBMax, self.channelB_range, maxADC)
+
+        # Creates the time data
+        time_axis = np.linspace(0, (cmaxSamples.value - 1) * timeIntervalns.value, cmaxSamples.value)
+
+        # Plots the data from channel A onto a graph
+        # plt.plot(time_axis, adc2mVChAMax[:])
+        # plt.plot(time_axis, adc2mVChBMax[:])
+        # plt.xlabel('Time (ns)')
+        # plt.ylabel('Voltage (mV)')
+        # plt.show()
+
+        # data = dict()
+        # data['timestamp'] = time_axis
+        # data['ch_a'] = adc2mVChAMax
+        # data['ch_b'] = adc2mVChBMax
+
+        df = pd.DataFrame({'time' : time_axis, 'ch_A' : adc2mVChAMax, 'ch_B' : adc2mVChBMax})
+
+        return df
+
+    def check_limits(self, df) -> int:
         """
-        Check if captured data is within channel limits.
+        Проверка, что измеренные напряжения укладываются в диапазон каналов.
         
         Args:
-            data_frame (pd.DataFrame): DataFrame with ch_A and ch_B columns
+            df (pd.DataFrame): DataFrame with ch_A and ch_B columns
             
         Returns:
             int: 0 if within limits, 1 if channel A out of range, 2 if channel B out of range
         """
-        channel_a_limit = self.CHANNEL_RANGES[self.channel_a_range]
-        channel_b_limit = self.CHANNEL_RANGES[self.channel_b_range]
-        
-        ch_a_min = data_frame['ch_A'].min()
-        ch_a_max = data_frame['ch_A'].max()
-        ch_b_min = data_frame['ch_B'].min()
-        ch_b_max = data_frame['ch_B'].max()
-        
-        if (ch_a_min > -channel_a_limit and ch_a_max < channel_a_limit and 
-            ch_b_min > -channel_b_limit and ch_b_max < channel_b_limit):
-            print("All channels within measurement range")
+        ch_A_lim = POWER_RANGE[self.channelA_range]
+        ch_B_lim = POWER_RANGE[self.channelB_range]
+
+        ch_A_min = df['ch_A'].min()
+        ch_A_max = df['ch_A'].max()
+        ch_B_min = df['ch_B'].min()
+        ch_B_max = df['ch_B'].max()
+
+        if ((ch_A_min > -ch_A_lim) and (ch_A_max < ch_A_lim) and
+           (ch_B_min > -ch_B_lim) and (ch_B_max < ch_B_lim)):
+            print("В пределах измерений каналов")
             return 0
-        
-        if ch_a_min <= -channel_a_limit or ch_a_max >= channel_a_limit:
-            print(f"Channel A out of range ({ch_a_min:.2f} to {ch_a_max:.2f} mV, limit ±{channel_a_limit} mV)")
+        if (ch_A_min <= -ch_A_lim) or (ch_A_max >= ch_A_lim):
+            print("выход за пределы измерения канала А")
             return 1
-        
-        if ch_b_min <= -channel_b_limit or ch_b_max >= channel_b_limit:
-            print(f"Channel B out of range ({ch_b_min:.2f} to {ch_b_max:.2f} mV, limit ±{channel_b_limit} mV)")
+        if (ch_B_min <= -ch_B_lim) or (ch_B_max >= ch_B_lim):
+            print("выход за пределы измерения канала B")    
             return 2
 
-    def save_data(self, data_frame, frequency=None, amplitude=None):
+    def save_data(self, df: pd.DataFrame, frequency="", amplitude=""):
         """
         Save captured data to CSV file.
         
         Args:
-            data_frame (pd.DataFrame): Data to save
+            df (pd.DataFrame): Data to save
             frequency (float): Optional signal generator frequency for filename
             amplitude (float): Optional signal generator amplitude for filename
         """
-        timestamp = time.strftime("%Y-%m-%d_%H-%M")
-        freq_str = f"@{frequency}Hz" if frequency is not None else ""
-        amp_str = f"_{int(amplitude/1000)}mV" if amplitude is not None else ""
-        
-        filename = f"rawdata_{timestamp}{freq_str}{amp_str}.csv"
-        data_frame.to_csv(filename, index=False)
-        print(f"Data saved to {filename}")
+        filename = time.strftime("%Y-%m-%d_%H-%M")
+        df.to_csv(f"rawdata_{filename}@{frequency}Hz_{int(amplitude/1000)}mV.csv")
 
     def close(self):
-        """Close the Picoscope device."""
+        """
+        Close the Picoscope device.
+        """
+        # Stops the scope
+        # Handle = chandle
         self.status["stop"] = ps.ps3000aStop(self.chandle)
         assert_pico_ok(self.status["stop"])
-        
+
+        # Closes the unit
+        # Handle = chandle
         self.status["close"] = ps.ps3000aCloseUnit(self.chandle)
         assert_pico_ok(self.status["close"])
-        
-        print("Picoscope closed successfully.")
 
+        # Displays the status returns
+        print(self.status)
+        print("Picoscope closed.")
 
 if __name__ == "__main__":
     picoscope = Picoscope3204D()
     try:
-        picoscope.configure_channels(channel_a_range=5, channel_b_range=7)  # ±500mV and ±2V
-        picoscope.setup_trigger(channel='B', direction='RISING')
-        
-        input("Connect the amplifier and press Enter to continue...")
-        
-        picoscope.setup_signal_generator(frequency=50, amplitude=1000000)  # 1V, 50Hz
-        data = picoscope.capture_data(max_samples=20000)
-        
-        if picoscope.check_limits(data) == 0:
-            print(data.head())
-            picoscope.save_data(data, frequency=50, amplitude=1000000)
-        else:
-            print("Adjust channel ranges and try again.")
-            
+        picoscope.initialize_ports(channelA_range=5, channelB_range=7)
+        picoscope.setup_trigger()
+        input('Подключите усилитель')
+        picoscope.setup_generator(frequency=50, amplitude=1000000)  # 30000 samples at 50 Hz, 1 V, 10 mks
+        data = picoscope.read_data(max_samples=20000, sample_rate=1252)
+        match picoscope.check_limits(data):
+            case 0: print(data.head(20))
+            case 1: print("Надо увеличить лимиты канала A")
+            case 2: print("Надо увеличить лимиты канала B")
+        # picoscope.save_data(data)        
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"An error occurred: {e}")
     finally:
         picoscope.close()
