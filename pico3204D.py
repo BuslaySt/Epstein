@@ -109,7 +109,7 @@ class Picoscope3204D:
         Args:
             channel (str): Channel to trigger on ('A' or 'B')
             threshold (int): ADC count threshold for trigger
-            direction (str): Trigger direction ('RISING', 'FALLING', etc.)
+            direction (str): Trigger direction ('RISING', 'FALLING', 'RISING_LOWER', 'OUTSIDE', etc.)
             delay (int): Delay in samples between trigger and first sample
             auto_trigger_ms (int): Auto-trigger timeout in milliseconds
         """
@@ -117,11 +117,11 @@ class Picoscope3204D:
         direction_name = f'PS3000A_{direction.upper()}'
         
         self.status["trigger"] = ps.ps3000aSetSimpleTrigger(
-            self.chandle,
-            1,  # enabled
-            ps.PS3000A_CHANNEL[channel_name],
+            self.chandle,                       # handle
+            1,                                  # enabled
+            ps.PS3000A_CHANNEL[channel_name],   # source
             threshold,
-            ps.PS3000A_THRESHOLD_DIRECTION[direction_name],
+            ps.PS3000A_THRESHOLD_DIRECTION[direction_name], # direction
             delay,
             auto_trigger_ms
         )
@@ -153,7 +153,7 @@ class Picoscope3204D:
         self.status["SetSigGenBuiltIn"] = ps.ps3000aSetSigGenBuiltIn(
             self.chandle,
             offset_voltage,
-            amplitude,
+            amplitude,              # pkToPk
             wave_type_code,
             frequency,
             frequency,  # stop frequency (same as start for no sweep)
