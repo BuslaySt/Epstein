@@ -147,13 +147,21 @@ class MainUI(QMainWindow):
         Обработка нажатия кнопки "Сохранить результат"
         '''
         try:
-            self.picoscope.save_data(self.data, self.freq, self.amp)
+            # self.picoscope.save_data(self.data, self.freq, self.amp)
+            dataDir = 'data'
+            filename = time.strftime("%Y-%m-%d_%H-%M")
+            os.makedirs(dataDir, exist_ok = True)
+            self.data.to_csv(os.path.join(dataDir, f"rawdata_{filename}@{self.freq}Hz_{int(self.amp/1000)}mV.csv"))
             self.saveImg()
+            message = 'Данные сохранены'
+            print(message)
+            self.statusBar.showMessage(message)
+
             self.graphWidget.clear() # очистка графика
             self.lbl_Bmax.clear()
             self.lbl_powerLosses.clear()
             self.lists2zero() # очистка списков с результатами измерений
-            print("Результат сохранён")
+
         except Exception as e:
             message = f"Что-то пошло не так при сохранении: {e}"
             print(message)
@@ -163,7 +171,6 @@ class MainUI(QMainWindow):
         '''
         Вывод графика в GUI
         -'''
-
         styles = {'color': 'black', 'font-size': '12px'}
         self.graphWidget.setLabel('left', "B", **styles)
         self.graphWidget.setLabel('bottom', "H", **styles)
@@ -189,10 +196,6 @@ class MainUI(QMainWindow):
         
         plt.savefig(os.path.join(graphDir, f"{filename}_hister.jpg"), dpi = 600)
         plt.close()
-        message = 'График сохранен успешно'
-        print(message)
-        self.statusBar.showMessage(message)
-
 
     def lists2zero(self):
         '''
