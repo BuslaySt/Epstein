@@ -91,10 +91,12 @@ class MainUI(QMainWindow):
                     case 1:
                         self.limitA += 1
                         self.amp -= ampincrement
+                        step -= 1
                         continue
                     case 2:
                         self.limitB += 1
                         self.amp -= ampincrement
+                        step -= 1
                         continue
 
                 sampleParameters = [x, y, N, ro]
@@ -103,11 +105,11 @@ class MainUI(QMainWindow):
                 Bmax = result[0]
                 print(Bmax)
 
-                if Bmax >= B or self.amp >= 4000000 or step > 10: # шагов на достижение целевого значения
+                if Bmax >= B or self.amp >= 4000000 or step > 30: # шагов на достижение целевого значения
                     key = 1
 
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
-            samples = int(5*100000/self.freq)
+            samples = int(50*100000/self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
 
             sampleParameters = [x, y, N, ro]
