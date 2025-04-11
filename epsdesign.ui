@@ -120,7 +120,7 @@
          <item>
           <widget class="QPushButton" name="pBtn_init">
            <property name="text">
-            <string>Реинициализация АЦП и генератора</string>
+            <string>Инициализация АЦП и генератора</string>
            </property>
           </widget>
          </item>

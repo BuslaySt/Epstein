@@ -32,13 +32,14 @@ class MainUI(QMainWindow):
 
     def init_pico(self):
         '''- Инициализация осциллографа Picoscope3204D и подключение портов -'''
-        # self.picoscope = Picoscope3204D()
+        if not hasattr(self, 'picoscope'):
+            self.picoscope = Picoscope3204D()
         self.limitA = 5
         self.limitB = 7
-        self.picoscope.initialize_ports(limitA=self.limitA, limitB=self.limitB)
+        self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
         self.amp = 500000 # начальная амплитуда в мкВ
-        self.picoscope.setup_generator(self.freq, amplitude=self.amp)
+        self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
     def start(self):
         '''- Измерения -'''
@@ -60,9 +61,9 @@ class MainUI(QMainWindow):
         N = int(self.lEd_N.text().replace(',','.')) # количество слоев полос, уложенных в рамку
         ro = float(self.lEd_ro.text().replace(',','.')) # плотность материала
         
-        self.limitA = 5 # 500mV на канал А
+        self.limitA = 5 # 500mV на канал А 
         self.limitB = 7 # 2V на канал B
-        self.picoscope.initialize_ports(limitA=self.limitA, limitB=self.limitB)
+        self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
 
         self.amp = 500000 # начальная амплитуда в мкВ
         key = 0 # соответствие измеренной Вм и заданной Вм меняется на 1 по достижении заданной величины индукции, запускает измерение потерь.
@@ -74,22 +75,22 @@ class MainUI(QMainWindow):
             while not key:
                 step += 1
                 self.amp += ampincrement
-                self.picoscope.initialize_ports(limitA=self.limitA, limitB=self.limitB)
-                self.picoscope.setup_generator(self.freq, amplitude=self.amp)
+                self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
+                self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
                 samples = int(5*100000/self.freq)
                 self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
                 time.sleep(0.002)
                 # Проверка выхода за пределы каналов
-                check = self.picoscope.check_limits(self.data)
-                if check == 1:
-                    self.limitA += 1
-                    self.amp -= ampincrement
-                    continue
-                elif check == 2:
-                    self.limitB += 1
-                    self.amp -= ampincrement
-                    continue
+                match self.picoscope.check_limits(self.data):
+                    case 1:
+                        self.limitA += 1
+                        self.amp -= ampincrement
+                        continue
+                    case 2:
+                        self.limitB += 1
+                        self.amp -= ampincrement
+                        continue
 
                 sampleParameters = [x, y, N, ro]
                 runParameters = [self.data, self.freq, key, configNumber, sampleParameters]
@@ -177,7 +178,6 @@ if __name__ == "__main__":
         epstein = MainUI()
         epstein.show()
         
-        epstein.picoscope = Picoscope3204D()
         # epstein.init_pico()
         sys.exit(app.exec_())
 
