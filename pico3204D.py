@@ -105,7 +105,7 @@ class Picoscope3204D:
                                                 analogue_offset)
         assert_pico_ok(self.status["setChB"])
 
-    def setup_trigger(self, channel='B', threshold=0, direction='RISING', delay=0, auto_trigger_ms=1000):
+    def setup_trigger(self, enable=1, channel='B', threshold=0, direction='RISING', delay=0, auto_trigger_ms=1000):
         """
         Set up a simple trigger on the specified channel.
         
@@ -117,19 +117,20 @@ class Picoscope3204D:
             auto_trigger_ms (int): Auto-trigger timeout in milliseconds
         """
         # Handle = Chandle ; device identifier returned by ps3000aOpenUnit
-        enable = 1 ; zero to disable the trigger; any other value to set the trigger
+        # Enable = 1 # zero to disable the trigger; any other value to set the trigger
         # Source = ps3000A_channel_B = 1 ; the channel on which to trigger
-        source = f'PS3000A_CHANNEL_{channel.upper()}'
+        channel_name = f'PS3000A_CHANNEL_{channel.upper()}'
+        source = ps.PS3000A_CHANNEL[channel_name]
         # Threshold = 1024 ADC counts ; the ADC count at which the trigger will fire
         # Direction = ps3000A_Falling = 3 ; the direction in which the signal must move to cause a trigger.
         # Direction = ps3000A_Rising = 2 ; The following directions are supported: ABOVE, BELOW, RISING, FALLING and RISING_OR_FALLING.
+        threshold_direction = ps.PS3000A_THRESHOLD_DIRECTION[f'PS3000A_{direction}']
         # Delay = 0 ; the time between the trigger occurring and the first sample.
         # autoTrigger_ms = 1000 ; the number of milliseconds the device will wait if no trigger occurs
-        self.status["trigger"] = ps.ps3000aSetSimpleTrigger(self.chandle, enable, source, 0, ps.PS3000A_THRESHOLD_DIRECTION['PS3000A_RISING'], 0, 1000)
+        self.status["trigger"] = ps.ps3000aSetSimpleTrigger(self.chandle, enable, source, threshold, threshold_direction, delay, auto_trigger_ms)
         assert_pico_ok(self.status["trigger"])
 
-        print('Trigger set up on chB')
-        print(f'Trigger set up on channel {channel} ({direction} at {threshold} ADC counts)')
+        print(f'Триггер подключен на канале {channel} ({direction} @ {threshold} ADC counts)')
 
     def setup_generator(self, frequency=50, amplitude=1000000) -> None:
         """
@@ -322,8 +323,8 @@ class Picoscope3204D:
         Returns:
             int: 0 if within limits, 1 if channel A out of range, 2 if channel B out of range
         """
-        ch_A_lim = POWER_RANGE[self.channelA_range]
-        ch_B_lim = POWER_RANGE[self.channelB_range]
+        ch_A_lim = self.POWER_RANGE[self.channelA_range]
+        ch_B_lim = self.POWER_RANGE[self.channelB_range]
 
         ch_A_min = df['ch_A'].min()
         ch_A_max = df['ch_A'].max()
@@ -372,13 +373,14 @@ class Picoscope3204D:
         print("Picoscope closed.")
 
 if __name__ == "__main__":
-    picoscope = Picoscope3204D()
     try:
+        picoscope = Picoscope3204D()
         picoscope.initialize_ports(channelA_range=5, channelB_range=7)
         picoscope.setup_trigger()
         input('Подключите усилитель')
         picoscope.setup_generator(frequency=50, amplitude=1000000)  # 30000 samples at 50 Hz, 1 V, 10 mks
-        data = picoscope.read_data(max_samples=20000, sample_rate=1252)
+        data = picoscope.read_data()
+        print(picoscope.check_limits(data))
         match picoscope.check_limits(data):
             case 0: print(data.head(20))
             case 1: print("Надо увеличить лимиты канала A")
