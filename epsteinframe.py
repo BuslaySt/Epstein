@@ -31,21 +31,29 @@ class MainUI(QMainWindow):
         
 
     def init_pico(self):
-        '''- Инициализация осциллографа Picoscope3204D и подключение портов -'''
+        '''
+        Инициализация осциллографа Picoscope3204D и подключение портов и генератора -
+        '''
         if not hasattr(self, 'picoscope'):
             self.picoscope = Picoscope3204D()
-        self.limitA = 5
-        self.limitB = 7
+        
+        # Подключение портов
+        self.limitA = 5 # 500mV на канал А 
+        self.limitB = 7 # 2V на канал B
         self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
+
+        # Старт генератора
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
         self.amp = 500000 # начальная амплитуда в мкВ
         self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
     def start(self):
-        '''- Измерения -'''
-        # При нажатии кнопки "Начать измерения" запускаем цикл измерений
-        
-        print("Начало измерений")
+        '''
+        При нажатии кнопки "Начать измерения" запускаем цикл измерений -
+        '''
+        message = "Начало измерений"
+        print(message)
+        self.statusBar.showMessage(message)
         # Рабочая частота и целевая индукция задаются пользователем в интерфейсе
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
         timebase=1252 # timebase=1252 == 10 мкс
@@ -61,11 +69,8 @@ class MainUI(QMainWindow):
         N = int(self.lEd_N.text().replace(',','.')) # количество слоев полос, уложенных в рамку
         ro = float(self.lEd_ro.text().replace(',','.')) # плотность материала
         
-        self.limitA = 5 # 500mV на канал А 
-        self.limitB = 7 # 2V на канал B
-        self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
+        self.init_pico() # Реинициализация каналов и генератора
 
-        self.amp = 500000 # начальная амплитуда в мкВ
         key = 0 # соответствие измеренной Вм и заданной Вм меняется на 1 по достижении заданной величины индукции, запускает измерение потерь.
         step = 0
         ampincrement = 50000
@@ -100,7 +105,12 @@ class MainUI(QMainWindow):
 
                 if Bmax >= B or self.amp >= 4000000 or step > 30: # шагов на достижение целевого значения
                     key = 1
-                
+
+            if Bmax < B:
+                message = "Целевое значение индукции не достигнуто"
+                print(message)
+                self.statusBar.setText(message)
+
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
             samples = int(50*100000/self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
@@ -123,10 +133,14 @@ class MainUI(QMainWindow):
             print(self.Bmax, self.powerLosses)
             self.plotData()
         except Exception as e:
-            print(f"Что-то пошло не так при измерениях: {e}")
+            message = f"Что-то пошло не так при измерениях: {e}"
+            print(message)
+            self.statusBar.setText(message)
 
     def save(self):
-        # Обработка нажатия кнопки "Сохранить результат"
+        '''
+        Обработка нажатия кнопки "Сохранить результат"
+        '''
         try:
             self.picoscope.save_data(self.data, self.freq, self.amp)
             self.saveImg()
@@ -136,11 +150,15 @@ class MainUI(QMainWindow):
             self.lists2zero() # очистка списков с результатами измерений
             print("Результат сохранён")
         except Exception as e:
-            print(f"Что-то пошло не так при сохранении: {e}")
+            message = f"Что-то пошло не так при сохранении: {e}"
+            print(message)
+            self.statusBar.setText(message)
 
     def plotData(self):
-        '''- Вывод графика в GUI -'''
-        
+        '''
+        Вывод графика в GUI
+        -'''
+
         styles = {'color': 'black', 'font-size': '12px'}
         self.graphWidget.setLabel('left', "B", **styles)
         self.graphWidget.setLabel('bottom', "H", **styles)
@@ -150,7 +168,9 @@ class MainUI(QMainWindow):
         self.pltData = self.graphWidget.plot(x = self.H, y = self.B, pen = 'b')#, symbol = 'o')
 
     def saveImg(self):
-        '''- Сохранение картинки графика -'''
+        '''
+        Сохранение картинки графика
+        -'''
         graphDir = 'graph'
         filename = time.strftime("%Y-%m-%d_%H-%M")
         os.makedirs(graphDir, exist_ok = True)
@@ -164,10 +184,15 @@ class MainUI(QMainWindow):
         
         plt.savefig(os.path.join(graphDir, f"{filename}_hister.jpg"), dpi = 600)
         plt.close()
-        print('График сохранен успешно')
+        message = 'График сохранен успешно'
+        print(message)
+        self.statusBar.setText(message)
+
 
     def lists2zero(self):
-        '''- Очистка списков с результатами измерений-'''
+        '''
+        Очистка списков с результатами измерений
+        -'''
         self.listOfH = []
         self.listOfB = []
         
