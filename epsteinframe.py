@@ -103,16 +103,11 @@ class MainUI(QMainWindow):
                 Bmax = result[0]
                 print(Bmax)
 
-                if Bmax >= B or self.amp >= 4000000 or step > 30: # шагов на достижение целевого значения
+                if Bmax >= B or self.amp >= 4000000 or step > 10: # шагов на достижение целевого значения
                     key = 1
 
-            if Bmax < B:
-                message = "Целевое значение индукции не достигнуто"
-                print(message)
-                self.statusBar.setText(message)
-
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
-            samples = int(50*100000/self.freq)
+            samples = int(5*100000/self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
 
             sampleParameters = [x, y, N, ro]
@@ -132,10 +127,18 @@ class MainUI(QMainWindow):
 
             print(self.Bmax, self.powerLosses)
             self.plotData()
+
+            if Bmax < B:
+                message = "Целевое значение индукции не достигнуто"
+            else:
+                message = "Измерение завершено"
+            print(message)
+            self.statusBar.showMessage(message)
+
         except Exception as e:
             message = f"Что-то пошло не так при измерениях: {e}"
             print(message)
-            self.statusBar.setText(message)
+            self.statusBar.showMessage(message)
 
     def save(self):
         '''
@@ -152,7 +155,7 @@ class MainUI(QMainWindow):
         except Exception as e:
             message = f"Что-то пошло не так при сохранении: {e}"
             print(message)
-            self.statusBar.setText(message)
+            self.statusBar.showMessage(message)
 
     def plotData(self):
         '''
@@ -186,7 +189,7 @@ class MainUI(QMainWindow):
         plt.close()
         message = 'График сохранен успешно'
         print(message)
-        self.statusBar.setText(message)
+        self.statusBar.showMessage(message)
 
 
     def lists2zero(self):
