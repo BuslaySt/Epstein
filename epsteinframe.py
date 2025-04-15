@@ -193,7 +193,7 @@ class MainUI(QMainWindow):
 
         for H, B in zip(self.listOfH, self.listOfB):
             plt.plot(H, B, linewidth = 0.3, color = 'orange')
-        
+        plt.text(-500,1.5, f'f = {self.freq} Гц, Bmax = {self.Bmax:.3} Тл, P = {self.powerLosses:.3} Вт/кг', fontsize=7, bbox={'facecolor':'yellow','alpha':0.2})
         plt.savefig(os.path.join(graphDir, f"{filename}_hister.jpg"), dpi = 600)
         plt.close()
 
