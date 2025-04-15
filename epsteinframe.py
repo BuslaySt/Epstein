@@ -128,6 +128,8 @@ class MainUI(QMainWindow):
             self.listOfB.append(self.B)
 
             print(self.Bmax, self.powerLosses)
+            self.BmaxList.append(round(self.Bmax.item(), 3)) # правка для вывода таблицы
+            self.PowerLossList.append(round(self.powerLosses.item(), 3))
             self.plotData()
 
             if Bmax < B:
@@ -193,7 +195,11 @@ class MainUI(QMainWindow):
 
         for H, B in zip(self.listOfH, self.listOfB):
             plt.plot(H, B, linewidth = 0.3, color = 'orange')
-        plt.text(-500,1.5, f'f = {self.freq} Гц, Bmax = {self.Bmax:.3} Тл, P = {self.powerLosses:.3} Вт/кг', fontsize=7, bbox={'facecolor':'yellow','alpha':0.2})
+        plt.text(-1000, (self.Bmax - 0.2), f'f = {self.freq} Гц, Bmax = {self.Bmax:.3} Тл, P = {self.powerLosses:.3} Вт/кг', fontsize=7, bbox={'facecolor':'yellow','alpha':0.2})
+        plt.text(400, 0, f'B = {self.BmaxList}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
+        plt.text(400, -0.2, f'P = {self.PowerLossList}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
+        plt.text(400, -0.4, f'Конфигурация обмоток № {int(self.cBox_conf.currentText())}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
+        plt.text(400, -0.6, f'Количество слоев N {int(self.lEd_N.text().replace(',','.'))}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
         plt.savefig(os.path.join(graphDir, f"{filename}_hister.jpg"), dpi = 600)
         plt.close()
 
@@ -201,8 +207,10 @@ class MainUI(QMainWindow):
         '''
         Очистка списков с результатами измерений
         -'''
-        self.listOfH = []
-        self.listOfB = []
+        self.listOfH = [] # все величины H для построения графиков при сохранении результата
+        self.listOfB = [] # все величины В для построения графиков при сохранении результата
+        self.BmaxList = [] # все величины Вм для построения графиков при сохранении результата
+        self.PowerLossList = [] # все величины потерь для построения графиков при сохранении результата
         
 if __name__ == "__main__":
     app = QApplication(sys.argv)
