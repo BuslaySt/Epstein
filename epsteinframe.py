@@ -142,7 +142,7 @@ class MainUI(QMainWindow):
             print(self.Bmax, self.powerLosses)
             self.plotData()
 
-            if Bmax < B:
+            if self.Bmax < B:
                 message = "Целевое значение индукции не достигнуто"
             else:
                 message = "Измерение завершено"
