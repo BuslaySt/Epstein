@@ -77,7 +77,7 @@ class MainUI(QMainWindow):
 
         try:
             # цикл увеличения амплитуды генератора до достижения целевой индукции
-            while not key:
+            while not key or self.amp < 4000000 or step < 30:
                 step += 1
                 self.amp += ampincrement
                 self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
@@ -117,7 +117,7 @@ class MainUI(QMainWindow):
                 Bmax = result[0]
                 print(Bmax)
 
-                if Bmax >= B or self.amp >= 4000000 or step > 30: # шагов на достижение целевого значения
+                if Bmax >= B:
                     key = 1
 
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
@@ -132,8 +132,8 @@ class MainUI(QMainWindow):
             self.B = result[2]
             self.powerLosses = result[3]
             
-            self.lbl_Bmax.setText(f'Индукция - {round(self.Bmax, 2)} Тл')
-            self.lbl_powerLosses.setText(f'Потери - {round(self.powerLosses, 2)} Вт/кг')
+            self.lbl_Bmax.setText(f'Индукция - {round(self.Bmax, 4)} Тл')
+            self.lbl_powerLosses.setText(f'Потери - {round(self.powerLosses, 4)} Вт/кг')
             
             #all histeresis saved to file
             self.listOfH.append(self.H)
