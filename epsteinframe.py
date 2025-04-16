@@ -89,12 +89,22 @@ class MainUI(QMainWindow):
                 # Проверка выхода за пределы каналов
                 match self.picoscope.check_limits(self.data):
                     case 1:
-                        self.limitA += 1
+                        if self.limitA < 10:
+                            self.limitA += 1
+                        else:
+                            message = "Достигнут предел по каналу A"
+                            print(message)
+                            self.statusBar.showMessage(message)
                         self.amp -= ampincrement
                         step -= 1
                         continue
                     case 2:
-                        self.limitB += 1
+                        if self.limitB < 10:
+                            self.limitB += 1
+                        else:
+                            message = "Достигнут предел по каналу B"
+                            print(message)
+                            self.statusBar.showMessage(message)
                         self.amp -= ampincrement
                         step -= 1
                         continue
