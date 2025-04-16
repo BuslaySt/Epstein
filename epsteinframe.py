@@ -95,6 +95,7 @@ class MainUI(QMainWindow):
                             message = "Достигнут предел по каналу A"
                             print(message)
                             self.statusBar.showMessage(message)
+                            break
                         self.amp -= ampincrement
                         step -= 1
                         continue
@@ -105,6 +106,7 @@ class MainUI(QMainWindow):
                             message = "Достигнут предел по каналу B"
                             print(message)
                             self.statusBar.showMessage(message)
+                            break
                         self.amp -= ampincrement
                         step -= 1
                         continue
