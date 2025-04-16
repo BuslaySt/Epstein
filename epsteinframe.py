@@ -77,8 +77,9 @@ class MainUI(QMainWindow):
 
         try:
             # цикл увеличения амплитуды генератора до достижения целевой индукции
-            while not key or self.amp < 4000000 or step < 30:
+            while (not key) and (self.amp < 4000000) and (step < 15):
                 step += 1
+                print(f'Шаг:{step}')
                 self.amp += ampincrement
                 self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
                 self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
