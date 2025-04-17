@@ -158,9 +158,7 @@ class MainUI(QMainWindow):
             self.statusBar.showMessage(message)
 
     def save(self):
-        '''
-        Обработка нажатия кнопки "Сохранить результат"
-        '''
+        ''' Обработка нажатия кнопки "Сохранить результат" '''
         try:
             # self.picoscope.save_data(self.data, self.freq, self.amp)
             dataDir = 'data'
@@ -171,11 +169,7 @@ class MainUI(QMainWindow):
             message = 'Данные сохранены'
             print(message)
             self.statusBar.showMessage(message)
-
-            self.graphWidget.clear() # очистка графика
-            self.lbl_Bmax.clear()
-            self.lbl_powerLosses.clear()
-            self.lists2zero() # очистка списков с результатами измерений
+            self.clear()
 
         except Exception as e:
             message = f"Что-то пошло не так при сохранении: {e}"
@@ -183,9 +177,7 @@ class MainUI(QMainWindow):
             self.statusBar.showMessage(message)
 
     def plotData(self):
-        '''
-        Вывод графика в GUI
-        -'''
+        ''' Вывод графика в GUI '''
         styles = {'color': 'black', 'font-size': '12px'}
         self.graphWidget.setLabel('left', "B", **styles)
         self.graphWidget.setLabel('bottom', "H", **styles)
@@ -195,9 +187,7 @@ class MainUI(QMainWindow):
         self.pltData = self.graphWidget.plot(x = self.H, y = self.B, pen = 'b')#, symbol = 'o')
 
     def saveImg(self):
-        '''
-        Сохранение картинки графика
-        -'''
+        ''' Сохранение картинки графика '''
         graphDir = 'graph'
         filename = time.strftime("%Y-%m-%d_%H-%M")
         os.makedirs(graphDir, exist_ok = True)
@@ -216,10 +206,16 @@ class MainUI(QMainWindow):
         plt.savefig(os.path.join(graphDir, f"{filename}_hister.jpg"), dpi = 600)
         plt.close()
 
+    def clear(self):
+        ''' Очистка поля графика и текстовых полей '''
+
+        self.graphWidget.clear() # очистка графика
+        self.lbl_Bmax.clear()
+        self.lbl_powerLosses.clear()
+        self.lists2zero() # очистка списков с результатами измерений
+
     def lists2zero(self):
-        '''
-        Очистка списков с результатами измерений
-        -'''
+        ''' Очистка списков с результатами измерений '''
         self.listOfH = [] # все величины H для построения графиков при сохранении результата
         self.listOfB = [] # все величины В для построения графиков при сохранении результата
         self.BmaxList = [] # все величины Вм для построения графиков при сохранении результата
