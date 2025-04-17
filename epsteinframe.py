@@ -44,7 +44,7 @@ class MainUI(QMainWindow):
 
         # Старт генератора
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
-        self.amp = 500000 # начальная амплитуда в мкВ
+        self.amp = 500000#500000 # начальная амплитуда в мкВ
         self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
     def start(self):
@@ -195,11 +195,11 @@ class MainUI(QMainWindow):
 
         for H, B in zip(self.listOfH, self.listOfB):
             plt.plot(H, B, linewidth = 0.3, color = 'orange')
-        plt.text(-1000, (self.Bmax - 0.2), f'f = {self.freq} Гц, Bmax = {self.Bmax:.3} Тл, P = {self.powerLosses:.3} Вт/кг', fontsize=7, bbox={'facecolor':'yellow','alpha':0.2})
-        plt.text(400, 0, f'B = {self.BmaxList}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
-        plt.text(400, -0.2, f'P = {self.PowerLossList}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
-        plt.text(400, -0.4, f'Конфигурация обмоток № {int(self.cBox_conf.currentText())}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
-        plt.text(400, -0.6, f'Количество слоев N {int(self.lEd_N.text().replace(',','.'))}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
+        plt.text(min(self.H), (self.Bmax - 0.2), f'f = {self.freq} Гц, Bmax = {self.Bmax:.3} Тл, P = {self.powerLosses:.3} Вт/кг', fontsize=7, bbox={'facecolor':'yellow','alpha':0.2})
+        plt.text(max(self.H)/2, 0, f'B = {self.BmaxList}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
+        plt.text(max(self.H)/2, -0.2, f'P = {self.PowerLossList}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
+        plt.text(max(self.H)/2, -0.4, f'Конфигурация обмоток № {int(self.cBox_conf.currentText())}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
+        plt.text(max(self.H)/2, -0.6, f'Количество слоев N {int(self.lEd_N.text().replace(',','.'))}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
         plt.savefig(os.path.join(graphDir, f"{filename}_hister.jpg"), dpi = 600)
         plt.close()
 
