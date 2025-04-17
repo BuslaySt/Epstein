@@ -6,7 +6,7 @@ import epscalc
 
 #v1.1
 
-ic.disable()
+#ic.disable()
 
 #основной скрипт вычисления и вывода графиков
 def run (runParameters):
@@ -40,15 +40,19 @@ def run (runParameters):
     bCoef = N*x*y #приведение потока к индукции
     coefSet = [currentCoef, configCoef, bCoef, coilCoef]
     timeset = 10**9 #
-    period = timeset/freq
+    period = timeset//freq
+    ic(period)
     time_coef = 10**-9 
     time = df['time'].values
     dx = (time_coef*(time[1] - time[0]))  
-    period_number = int((time[-1] - time[0])//period)
+    samplingTime = (time[-1] - time[0])
+    ic(samplingTime)
+    period_number = int(samplingTime//period)
     ic(period_number)
     startIndices, finishIndices = epscalc.get_periods(df, period_number, period)
+    ic(len(startIndices))
     integratedValues, currentValues = epscalc.voltage_integration(df, startIndices, finishIndices, dx, coefSet)
-
+    ic(len(integratedValues))
     avgInt = epscalc.array_averaging(integratedValues)
     avgCurrent = epscalc.array_averaging(currentValues)
     Bmax = max(avgInt)
@@ -65,7 +69,7 @@ def run (runParameters):
 #функция определения индексов начала и конца периодов
 def get_periods (df, period_number, period):
 
-    startIndex = 100
+    startIndex = 0
     finishIndex = 0
     startIndices = []
     finishIndices = []
@@ -76,7 +80,7 @@ def get_periods (df, period_number, period):
         finishTime = startTime + period
         
         for i in df.index:
-            if abs(df['time'][i] - finishTime) < 1:
+            if abs(df['time'][i] - finishTime) < 1000: #1
                 finishIndex = i
             
         finishIndices.append(finishIndex)
@@ -113,7 +117,7 @@ def voltage_integration(df, startIndices, finishIndices, dx, coefSet):
     for start, finish in zip(startIndices, finishIndices):
         
         df_period = (df[start:finish].reset_index(drop = True))
-        voltage = df_period['ch_B'].values/1000
+        voltage = df_period['ch_B'].values/1000 #приведение к В
         n = len(voltage) - 1
         allCurrent.append(df_period['ch_A'].values*(coefSet[0]*coefSet[1]/1000))
 

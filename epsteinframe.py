@@ -2,6 +2,7 @@ import time, os, sys
 from PyQt5.QtWidgets import QMainWindow, QApplication
 from PyQt5.uic import loadUi
 import epscalc
+import numpy as np
 import matplotlib.pyplot as plt
 from pico3204D import Picoscope3204D
 
@@ -56,7 +57,7 @@ class MainUI(QMainWindow):
         self.statusBar.showMessage(message)
         # Рабочая частота и целевая индукция задаются пользователем в интерфейсе
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
-        timebase=1252 # timebase=1252 == 10 мкс
+        timebase= 127 #1252 # timebase=1252 == 10 мкс;  127==1 мкс
         B = float(self.lEd_B.text().replace(',','.')) # магнитная индукция, Тл
         configNumber = int(self.cBox_conf.currentText()) # номер конфигурации катушек на выбор 1 из 3, выбор из списка
 
@@ -77,14 +78,14 @@ class MainUI(QMainWindow):
 
         try:
             # цикл увеличения амплитуды генератора до достижения целевой индукции
-            while (not key) and (self.amp < 4000000) and (step < 15):
+            while (not key) and (self.amp < 4000000) and (step < 35): #step<15
                 step += 1
                 print(f'Шаг:{step}')
                 self.amp += ampincrement
                 self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
                 self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
-                samples = int(5*100000/self.freq)
+                samples = int(12*100000/self.freq)#5
                 self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
                 time.sleep(0.002)
                 # Проверка выхода за пределы каналов
@@ -122,7 +123,7 @@ class MainUI(QMainWindow):
                     key = 1
 
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
-            samples = int(50*100000/self.freq)
+            samples = int(120*100000/self.freq)#50
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
 
             sampleParameters = [x, y, N, ro]
@@ -141,8 +142,8 @@ class MainUI(QMainWindow):
             self.listOfB.append(self.B)
 
             print(self.Bmax, self.powerLosses)
-            self.BmaxList.append(round(self.Bmax.item(), 3)) # правка для вывода таблицы
-            self.PowerLossList.append(round(self.powerLosses.item(), 3))
+            self.BmaxList.append(round(self.Bmax, 3)) # правка для вывода таблицы
+            self.PowerLossList.append(round(self.powerLosses, 3))
             self.plotData()
 
             if self.Bmax < B:
@@ -198,6 +199,7 @@ class MainUI(QMainWindow):
         '''
         Сохранение картинки графика
         -'''
+        #fig, ax = plt.subplots()
         graphDir = 'graph'
         filename = time.strftime("%Y-%m-%d_%H-%M")
         os.makedirs(graphDir, exist_ok = True)
@@ -205,14 +207,18 @@ class MainUI(QMainWindow):
         plt.grid(visible = True, which = 'both', axis = 'both', color = 'grey', linestyle = ':', linewidth = 0.5)
         plt.xlabel("H")
         plt.ylabel("B")
-
+        columnLabels = ['B', 'P']
+        
+        data = list(zip(self.BmaxList, self.PowerLossList))
         for H, B in zip(self.listOfH, self.listOfB):
             plt.plot(H, B, linewidth = 0.3, color = 'orange')
         plt.text(min(self.H), (self.Bmax - 0.2), f'f = {self.freq} Гц, Bmax = {self.Bmax:.3} Тл, P = {self.powerLosses:.3} Вт/кг', fontsize=7, bbox={'facecolor':'yellow','alpha':0.2})
-        plt.text(max(self.H)/2, 0, f'B = {self.BmaxList}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
-        plt.text(max(self.H)/2, -0.2, f'P = {self.PowerLossList}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
-        plt.text(max(self.H)/2, -0.4, f'Конфигурация обмоток № {int(self.cBox_conf.currentText())}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
-        plt.text(max(self.H)/2, -0.6, f'Количество слоев N {int(self.lEd_N.text().replace(',','.'))}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
+        #plt.text(max(self.H)/2, 0, f'B = {self.BmaxList}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
+        #plt.text(max(self.H)/2, -0.2, f'P = {self.PowerLossList}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
+        plt.text(min(self.H), (self.Bmax - 0.4), f'Конфигурация обмоток № {int(self.cBox_conf.currentText())}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
+        plt.text(min(self.H), (self.Bmax - 0.6), f'Количество слоев N = {int(self.lEd_N.text().replace(',','.'))}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
+        tab = plt.table(cellText = data, colWidths = [0.1]*2, colLabels = columnLabels, colColours = ['yellow']*2, loc = 'lower right')
+        tab.set_fontsize(10)
         plt.savefig(os.path.join(graphDir, f"{filename}_hister.jpg"), dpi = 600)
         plt.close()
 
