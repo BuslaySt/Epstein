@@ -1,0 +1,10 @@
+<svg width="70" height="70" viewBox="0 0 70 70" xmlns="http://www.w3.org/2000/svg">
+  <!-- Фон круга -->
+  <circle cx="35" cy="35" r="30" fill="#007bff" opacity="0.9"/>
+  
+  <!-- Основной крестик -->
+  <path d="M25 25 L45 45 M45 25 L25 45" 
+        stroke="white" 
+        stroke-width="6" 
+        stroke-linecap="round"/>
+</svg>

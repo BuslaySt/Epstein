@@ -2,7 +2,6 @@ import time, os, sys
 from PyQt5.QtWidgets import QMainWindow, QApplication
 from PyQt5.uic import loadUi
 import epscalc
-import numpy as np
 import matplotlib.pyplot as plt
 from pico3204D import Picoscope3204D
 
@@ -57,7 +56,7 @@ class MainUI(QMainWindow):
         self.statusBar.showMessage(message)
         # Рабочая частота и целевая индукция задаются пользователем в интерфейсе
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
-        timebase= 127 #1252 # timebase=1252 == 10 мкс;  127==1 мкс
+        timebase=1252 # timebase=1252 == 10 мкс
         B = float(self.lEd_B.text().replace(',','.')) # магнитная индукция, Тл
         configNumber = int(self.cBox_conf.currentText()) # номер конфигурации катушек на выбор 1 из 3, выбор из списка
 
@@ -78,14 +77,14 @@ class MainUI(QMainWindow):
 
         try:
             # цикл увеличения амплитуды генератора до достижения целевой индукции
-            while (not key) and (self.amp < 4000000) and (step < 35): #step<15
+            while (not key) and (self.amp < 4000000) and (step < 15):
                 step += 1
                 print(f'Шаг:{step}')
                 self.amp += ampincrement
                 self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
                 self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
-                samples = int(12*100000/self.freq)#5
+                samples = int(5*100000/self.freq)
                 self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
                 time.sleep(0.002)
                 # Проверка выхода за пределы каналов
@@ -123,7 +122,7 @@ class MainUI(QMainWindow):
                     key = 1
 
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
-            samples = int(120*100000/self.freq)#50
+            samples = int(50*100000/self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
 
             sampleParameters = [x, y, N, ro]
@@ -142,8 +141,8 @@ class MainUI(QMainWindow):
             self.listOfB.append(self.B)
 
             print(self.Bmax, self.powerLosses)
-            self.BmaxList.append(round(self.Bmax, 3)) # правка для вывода таблицы
-            self.PowerLossList.append(round(self.powerLosses, 3))
+            self.BmaxList.append(round(self.Bmax.item(), 3)) # правка для вывода таблицы
+            self.PowerLossList.append(round(self.powerLosses.item(), 3))
             self.plotData()
 
             if self.Bmax < B:
@@ -159,9 +158,7 @@ class MainUI(QMainWindow):
             self.statusBar.showMessage(message)
 
     def save(self):
-        '''
-        Обработка нажатия кнопки "Сохранить результат"
-        '''
+        ''' Обработка нажатия кнопки "Сохранить результат" '''
         try:
             # self.picoscope.save_data(self.data, self.freq, self.amp)
             dataDir = 'data'
@@ -172,11 +169,7 @@ class MainUI(QMainWindow):
             message = 'Данные сохранены'
             print(message)
             self.statusBar.showMessage(message)
-
-            self.graphWidget.clear() # очистка графика
-            self.lbl_Bmax.clear()
-            self.lbl_powerLosses.clear()
-            self.lists2zero() # очистка списков с результатами измерений
+            self.clear()
 
         except Exception as e:
             message = f"Что-то пошло не так при сохранении: {e}"
@@ -184,9 +177,7 @@ class MainUI(QMainWindow):
             self.statusBar.showMessage(message)
 
     def plotData(self):
-        '''
-        Вывод графика в GUI
-        -'''
+        ''' Вывод графика в GUI '''
         styles = {'color': 'black', 'font-size': '12px'}
         self.graphWidget.setLabel('left', "B", **styles)
         self.graphWidget.setLabel('bottom', "H", **styles)
@@ -196,10 +187,7 @@ class MainUI(QMainWindow):
         self.pltData = self.graphWidget.plot(x = self.H, y = self.B, pen = 'b')#, symbol = 'o')
 
     def saveImg(self):
-        '''
-        Сохранение картинки графика
-        -'''
-        #fig, ax = plt.subplots()
+        ''' Сохранение картинки графика '''
         graphDir = 'graph'
         filename = time.strftime("%Y-%m-%d_%H-%M")
         os.makedirs(graphDir, exist_ok = True)
@@ -208,13 +196,11 @@ class MainUI(QMainWindow):
         plt.xlabel("H")
         plt.ylabel("B")
         columnLabels = ['B', 'P']
-        
         data = list(zip(self.BmaxList, self.PowerLossList))
         for H, B in zip(self.listOfH, self.listOfB):
             plt.plot(H, B, linewidth = 0.3, color = 'orange')
         plt.text(min(self.H), (self.Bmax - 0.2), f'f = {self.freq} Гц, Bmax = {self.Bmax:.3} Тл, P = {self.powerLosses:.3} Вт/кг', fontsize=7, bbox={'facecolor':'yellow','alpha':0.2})
-        #plt.text(max(self.H)/2, 0, f'B = {self.BmaxList}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
-        #plt.text(max(self.H)/2, -0.2, f'P = {self.PowerLossList}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
+        
         plt.text(min(self.H), (self.Bmax - 0.4), f'Конфигурация обмоток № {int(self.cBox_conf.currentText())}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
         plt.text(min(self.H), (self.Bmax - 0.6), f'Количество слоев N = {int(self.lEd_N.text().replace(',','.'))}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
         tab = plt.table(cellText = data, colWidths = [0.1]*2, colLabels = columnLabels, colColours = ['yellow']*2, loc = 'lower right')
@@ -222,10 +208,16 @@ class MainUI(QMainWindow):
         plt.savefig(os.path.join(graphDir, f"{filename}_hister.jpg"), dpi = 600)
         plt.close()
 
+    def clear(self):
+        ''' Очистка поля графика и текстовых полей '''
+
+        self.graphWidget.clear() # очистка графика
+        self.lbl_Bmax.clear()
+        self.lbl_powerLosses.clear()
+        self.lists2zero() # очистка списков с результатами измерений
+
     def lists2zero(self):
-        '''
-        Очистка списков с результатами измерений
-        -'''
+        ''' Очистка списков с результатами измерений '''
         self.listOfH = [] # все величины H для построения графиков при сохранении результата
         self.listOfB = [] # все величины В для построения графиков при сохранении результата
         self.BmaxList = [] # все величины Вм для построения графиков при сохранении результата
