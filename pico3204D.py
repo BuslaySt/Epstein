@@ -22,6 +22,7 @@ class Picoscope3204D:
     
     DEFAULT_SAMPLE_RATE = 1252  # соответствует 10 мкс
     DEFAULT_MAX_SAMPLES = 20000
+    
     def __init__(self):
         """
         Initialize the Picoscope device.

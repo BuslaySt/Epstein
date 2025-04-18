@@ -79,6 +79,7 @@ class MainUI(QMainWindow):
         while True:
             # Проверка, что текущая индукция меньше целевой
             samples = int(50*100000/self.freq)
+            self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
             match self.picoscope.check_limits(self.data):
                 case 1:
@@ -93,6 +94,7 @@ class MainUI(QMainWindow):
                 case 2:
                     if self.limitB < 10:
                         self.limitB += 1
+                        print(self.limitB)
                     else:
                         self._message("Достигнут предел по каналу B")
                         break
@@ -112,14 +114,14 @@ class MainUI(QMainWindow):
                 break
 
         if abs(Bmax-B) < 0.1:
-            ampincrement = 1000
-            print(f'Приращение - {ampincrement/1000}')
-        elif abs(Bmax-B) < 0.5:
             ampincrement = 5000
-            print(f'Приращение - {ampincrement/1000}')
-        elif abs(Bmax-B) < 1:
+            print(f'Приращение - {ampincrement/1000} мВ')
+        elif abs(Bmax-B) < 0.5:
             ampincrement = 10000
-            print(f'Приращение - {ampincrement/1000}')
+            print(f'Приращение - {ampincrement/1000} мВ')
+        elif abs(Bmax-B) < 1:
+            ampincrement = 30000
+            print(f'Приращение - {ampincrement/1000} мВ')
         self.amp -= ampincrement
 
         try:
@@ -164,15 +166,15 @@ class MainUI(QMainWindow):
                 if Bmax >= B:
                     key = 1
 
-            if abs(Bmax-B) < 0.1:
-                ampincrement = 1000
-                print(f'Приращение - {ampincrement/1000}')
-            elif abs(Bmax-B) < 0.5:
-                ampincrement = 5000
-                print(f'Приращение - {ampincrement/1000}')
-            elif abs(Bmax-B) < 1:
-                ampincrement = 10000
-                print(f'Приращение - {ampincrement/1000}')
+                if abs(Bmax-B) < 0.1:
+                    ampincrement = 5000
+                    print(f'Приращение - {ampincrement/1000} мВ')
+                elif abs(Bmax-B) < 0.5:
+                    ampincrement = 30000
+                    print(f'Приращение - {ampincrement/1000} мВ')
+                elif abs(Bmax-B) < 1:
+                    ampincrement = 50000
+                    print(f'Приращение - {ampincrement/1000} мВ')
 
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
             samples = int(200*100000/self.freq)
