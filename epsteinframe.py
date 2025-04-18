@@ -28,7 +28,6 @@ class MainUI(QMainWindow):
         #график
         self.graphWidget.setBackground('w')
         
-
     def init_pico(self):
         ''' Инициализация осциллографа Picoscope3204D и подключение портов и генератора '''
         if not hasattr(self, 'picoscope'):
@@ -41,7 +40,7 @@ class MainUI(QMainWindow):
 
         # Старт генератора
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
-        self.amp = 500000#500000 # начальная амплитуда в мкВ
+        self.amp = 500000 #500000 # начальная амплитуда в мкВ
         self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
     def _message(self, message: str):
@@ -49,6 +48,22 @@ class MainUI(QMainWindow):
         print(message)
         self.statusBar.showMessage(message)
 
+    def _amplificationIncrementCheck(self, Bmax, B) -> int:
+        ''' Уменьшение шага прироста амплитуды в зависимости от разницы текущего и целевого значения индукции '''
+        if abs(Bmax-B) < 0.1:
+            ampincrement = self.freq*10
+            print(f'Приращение - {ampincrement/1000} мВ')
+            return ampincrement
+        elif abs(Bmax-B) < 0.5:
+            ampincrement = self.freq*50
+            print(f'Приращение - {ampincrement/1000} мВ')
+            return ampincrement
+        elif abs(Bmax-B) < 1:
+            ampincrement = self.freq*200
+            print(f'Приращение - {ampincrement/1000} мВ')
+            return ampincrement
+        ampincrement = self.freq*500
+        return ampincrement
 
     def start(self):
         ''' При нажатии кнопки "Начать измерения" запускаем цикл измерений '''
@@ -77,10 +92,11 @@ class MainUI(QMainWindow):
         print(f'Приращение - {ampincrement/1000}')
 
         while True:
-            # Проверка, что текущая индукция меньше целевой
+            # Проверка, что текущая индукция меньше целевой, если больше - уменьшаем амплитуду напряжения генератора
             samples = int(50*100000/self.freq)
             self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
+
             match self.picoscope.check_limits(self.data):
                 case 1:
                     if self.limitA < 10:
@@ -113,15 +129,7 @@ class MainUI(QMainWindow):
             else:
                 break
 
-        if abs(Bmax-B) < 0.1:
-            ampincrement = 5000
-            print(f'Приращение - {ampincrement/1000} мВ')
-        elif abs(Bmax-B) < 0.5:
-            ampincrement = 10000
-            print(f'Приращение - {ampincrement/1000} мВ')
-        elif abs(Bmax-B) < 1:
-            ampincrement = 30000
-            print(f'Приращение - {ampincrement/1000} мВ')
+        ampincrement = self._amplificationIncrementCheck(Bmax, B)
         self.amp -= ampincrement
 
         try:
@@ -163,18 +171,10 @@ class MainUI(QMainWindow):
                 Bmax = result[0]
                 print(Bmax)
 
+                ampincrement = self._amplificationIncrementCheck(Bmax, B)
+
                 if Bmax >= B:
                     key = 1
-
-                if abs(Bmax-B) < 0.1:
-                    ampincrement = 5000
-                    print(f'Приращение - {ampincrement/1000} мВ')
-                elif abs(Bmax-B) < 0.5:
-                    ampincrement = 30000
-                    print(f'Приращение - {ampincrement/1000} мВ')
-                elif abs(Bmax-B) < 1:
-                    ampincrement = 50000
-                    print(f'Приращение - {ampincrement/1000} мВ')
 
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
             samples = int(200*100000/self.freq)
