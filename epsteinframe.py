@@ -17,10 +17,11 @@ class MainUI(QMainWindow):
 
         # Список конфигураций
         self.cBox_conf.addItems(['1','2','3'])
-        # Подключаем обработчики событий
+        # Подключаем обработчики событий на кнопки
         self.pBtn_init.clicked.connect(self.init_pico)
         self.pBtn_start.clicked.connect(self.start)
         self.pBtn_save.clicked.connect(self.save)
+        self.pBtn_clear.clicked.connect(self.clear_interface)
 
         # секция графика пока не в окончательном состоянии - возможны манипуляции
         self.lists2zero() # обнуление списков с результатами серии измерений
@@ -56,7 +57,7 @@ class MainUI(QMainWindow):
         # Рабочая частота и целевая индукция задаются пользователем в интерфейсе
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
         timebase=1252 # timebase=1252 == 10 мкс
-        B = float(self.lEd_B.text().replace(',','.')) # магнитная индукция, Тл
+        B = float(self.lEd_B.text().replace(',','.')) # целевая магнитная индукция, Тл
         configNumber = int(self.cBox_conf.currentText()) # номер конфигурации катушек на выбор 1 из 3, выбор из списка
 
         self.lbl_Bmax.clear()
@@ -174,7 +175,7 @@ class MainUI(QMainWindow):
             self.data.to_csv(os.path.join(dataDir, f"rawdata_{filename}@{self.freq}Hz_{int(self.amp/1000)}mV.csv"))
             self.saveImg()
             self._message('Данные сохранены')
-            self.clear()
+            self.clear_interface()
 
         except Exception as e:
             self._message(f"Что-то пошло не так при сохранении: {e}")
@@ -211,7 +212,7 @@ class MainUI(QMainWindow):
         plt.savefig(os.path.join(graphDir, f"{filename}_hister.jpg"), dpi = 600)
         plt.close()
 
-    def clear(self):
+    def clear_interface(self):
         ''' Очистка поля графика и текстовых полей '''
         self.graphWidget.clear() # очистка графика
         self.lbl_Bmax.clear()
