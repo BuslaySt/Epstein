@@ -1,12 +1,7 @@
 /.vscode
 /venv
-/ps3000aExamples
-/Daniil
 /__pycache__
 /bin
 *.csv
-/data_basket
-/moshub
+/data
 /graph
-test.py
-eps_deeprefactor.py
