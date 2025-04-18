@@ -22,18 +22,14 @@ class MainUI(QMainWindow):
         self.pBtn_start.clicked.connect(self.start)
         self.pBtn_save.clicked.connect(self.save)
 
-        '''//ИП
-        секция графика пока не в окончательном состоянии - возможны манипуляции
-        '''
+        # секция графика пока не в окончательном состоянии - возможны манипуляции
         self.lists2zero() # обнуление списков с результатами серии измерений
         #график
         self.graphWidget.setBackground('w')
         
 
     def init_pico(self):
-        '''
-        Инициализация осциллографа Picoscope3204D и подключение портов и генератора -
-        '''
+        ''' Инициализация осциллографа Picoscope3204D и подключение портов и генератора '''
         if not hasattr(self, 'picoscope'):
             self.picoscope = Picoscope3204D()
         
@@ -47,13 +43,16 @@ class MainUI(QMainWindow):
         self.amp = 500000#500000 # начальная амплитуда в мкВ
         self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
-    def start(self):
-        '''
-        При нажатии кнопки "Начать измерения" запускаем цикл измерений -
-        '''
-        message = "Начало измерений"
+    def _message(self, message: str):
+        ''' Вывод сообщений в консоль и статусбар '''
         print(message)
         self.statusBar.showMessage(message)
+
+
+    def start(self):
+        ''' При нажатии кнопки "Начать измерения" запускаем цикл измерений '''
+        self._message("Начало измерений")
+
         # Рабочая частота и целевая индукция задаются пользователем в интерфейсе
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
         timebase=1252 # timebase=1252 == 10 мкс
@@ -75,6 +74,21 @@ class MainUI(QMainWindow):
         step = 0
         ampincrement = 50000
 
+        while True:
+            # Проверка, что текущая индукция меньше целевой
+            samples = int(20*100000/self.freq)
+            self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
+            sampleParameters = [x, y, N, ro]
+            runParameters = [self.data, self.freq, key, configNumber, sampleParameters]
+            result = epscalc.run(runParameters)
+            Bmax = result[0]
+            print(Bmax)
+            if Bmax > B:
+                self.amp -= ampincrement
+                self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
+            else:
+                break
+
         try:
             # цикл увеличения амплитуды генератора до достижения целевой индукции
             while (not key) and (self.amp < 4000000) and (step < 15):
@@ -93,9 +107,7 @@ class MainUI(QMainWindow):
                         if self.limitA < 10:
                             self.limitA += 1
                         else:
-                            message = "Достигнут предел по каналу A"
-                            print(message)
-                            self.statusBar.showMessage(message)
+                            self._message("Достигнут предел по каналу A")
                             break
                         self.amp -= ampincrement
                         step -= 1
@@ -104,9 +116,7 @@ class MainUI(QMainWindow):
                         if self.limitB < 10:
                             self.limitB += 1
                         else:
-                            message = "Достигнут предел по каналу B"
-                            print(message)
-                            self.statusBar.showMessage(message)
+                            self._message("Достигнут предел по каналу B")
                             break
                         self.amp -= ampincrement
                         step -= 1
@@ -149,13 +159,10 @@ class MainUI(QMainWindow):
                 message = "Целевое значение индукции не достигнуто"
             else:
                 message = "Измерение завершено"
-            print(message)
-            self.statusBar.showMessage(message)
+            self._message(message)
 
         except Exception as e:
-            message = f"Что-то пошло не так при измерениях: {e}"
-            print(message)
-            self.statusBar.showMessage(message)
+            self._message(f"Что-то пошло не так при измерениях: {e}")
 
     def save(self):
         ''' Обработка нажатия кнопки "Сохранить результат" '''
@@ -166,15 +173,11 @@ class MainUI(QMainWindow):
             os.makedirs(dataDir, exist_ok = True)
             self.data.to_csv(os.path.join(dataDir, f"rawdata_{filename}@{self.freq}Hz_{int(self.amp/1000)}mV.csv"))
             self.saveImg()
-            message = 'Данные сохранены'
-            print(message)
-            self.statusBar.showMessage(message)
+            self._message('Данные сохранены')
             self.clear()
 
         except Exception as e:
-            message = f"Что-то пошло не так при сохранении: {e}"
-            print(message)
-            self.statusBar.showMessage(message)
+            self._message(f"Что-то пошло не так при сохранении: {e}")
 
     def plotData(self):
         ''' Вывод графика в GUI '''
@@ -210,7 +213,6 @@ class MainUI(QMainWindow):
 
     def clear(self):
         ''' Очистка поля графика и текстовых полей '''
-
         self.graphWidget.clear() # очистка графика
         self.lbl_Bmax.clear()
         self.lbl_powerLosses.clear()
