@@ -56,7 +56,7 @@ class MainUI(QMainWindow):
 
         # Рабочая частота и целевая индукция задаются пользователем в интерфейсе
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
-        timebase=1252 # timebase=1252 == 10 мкс
+        timebase=127 # timebase=1252 == 10 мкс 127 == 1 мкс
         B = float(self.lEd_B.text().replace(',','.')) # целевая магнитная индукция, Тл
         configNumber = int(self.cBox_conf.currentText()) # номер конфигурации катушек на выбор 1 из 3, выбор из списка
 
@@ -74,11 +74,32 @@ class MainUI(QMainWindow):
         key = 0 # соответствие измеренной Вм и заданной Вм меняется на 1 по достижении заданной величины индукции, запускает измерение потерь.
         step = 0
         ampincrement = 50000
+        print(f'Приращение - {ampincrement/1000}')
 
         while True:
             # Проверка, что текущая индукция меньше целевой
-            samples = int(20*100000/self.freq)
+            samples = int(50*100000/self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
+            match self.picoscope.check_limits(self.data):
+                case 1:
+                    if self.limitA < 10:
+                        self.limitA += 1
+                    else:
+                        self._message("Достигнут предел по каналу A")
+                        break
+                    self.amp -= ampincrement
+                    step -= 1
+                    continue
+                case 2:
+                    if self.limitB < 10:
+                        self.limitB += 1
+                    else:
+                        self._message("Достигнут предел по каналу B")
+                        break
+                    self.amp -= ampincrement
+                    step -= 1
+                    continue
+
             sampleParameters = [x, y, N, ro]
             runParameters = [self.data, self.freq, key, configNumber, sampleParameters]
             result = epscalc.run(runParameters)
@@ -90,16 +111,27 @@ class MainUI(QMainWindow):
             else:
                 break
 
+        if abs(Bmax-B) < 0.1:
+            ampincrement = 1000
+            print(f'Приращение - {ampincrement/1000}')
+        elif abs(Bmax-B) < 0.5:
+            ampincrement = 5000
+            print(f'Приращение - {ampincrement/1000}')
+        elif abs(Bmax-B) < 1:
+            ampincrement = 10000
+            print(f'Приращение - {ampincrement/1000}')
+        self.amp -= ampincrement
+
         try:
             # цикл увеличения амплитуды генератора до достижения целевой индукции
-            while (not key) and (self.amp < 4000000) and (step < 15):
+            while (not key) and (self.amp < 4000000) and (step < 50):
                 step += 1
                 print(f'Шаг:{step}')
                 self.amp += ampincrement
                 self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
                 self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
-                samples = int(5*100000/self.freq)
+                samples = int(50*100000/self.freq)
                 self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
                 time.sleep(0.002)
                 # Проверка выхода за пределы каналов
@@ -132,8 +164,18 @@ class MainUI(QMainWindow):
                 if Bmax >= B:
                     key = 1
 
+            if abs(Bmax-B) < 0.1:
+                ampincrement = 1000
+                print(f'Приращение - {ampincrement/1000}')
+            elif abs(Bmax-B) < 0.5:
+                ampincrement = 5000
+                print(f'Приращение - {ampincrement/1000}')
+            elif abs(Bmax-B) < 1:
+                ampincrement = 10000
+                print(f'Приращение - {ampincrement/1000}')
+
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
-            samples = int(50*100000/self.freq)
+            samples = int(200*100000/self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
 
             sampleParameters = [x, y, N, ro]
@@ -152,8 +194,8 @@ class MainUI(QMainWindow):
             self.listOfB.append(self.B)
 
             print(self.Bmax, self.powerLosses)
-            self.BmaxList.append(round(self.Bmax.item(), 3)) # правка для вывода таблицы
-            self.PowerLossList.append(round(self.powerLosses.item(), 3))
+            self.BmaxList.append(round(self.Bmax, 3)) # правка для вывода таблицы
+            self.PowerLossList.append(round(self.powerLosses, 3))
             self.plotData()
 
             if self.Bmax < B:
