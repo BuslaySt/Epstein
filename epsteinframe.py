@@ -93,7 +93,7 @@ class MainUI(QMainWindow):
 
         while True:
             # Проверка, что текущая индукция меньше целевой, если больше - уменьшаем амплитуду напряжения генератора
-            samples = int(50*100000/self.freq)
+            samples = int(50*100000/self.freq) #50 - 127
             self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
 
@@ -141,7 +141,7 @@ class MainUI(QMainWindow):
                 self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
                 self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
-                samples = int(50*100000/self.freq)
+                samples = int(50*100000/self.freq) #50
                 self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
                 time.sleep(0.002)
                 # Проверка выхода за пределы каналов
@@ -247,13 +247,13 @@ class MainUI(QMainWindow):
         data = list(zip(self.BmaxList, self.PowerLossList))
         for H, B in zip(self.listOfH, self.listOfB):
             plt.plot(H, B, linewidth = 0.3, color = 'orange')
-        plt.text(min(self.H), (self.Bmax - 0.2), f'f = {self.freq} Гц, Bmax = {self.Bmax:.3} Тл, P = {self.powerLosses:.3} Вт/кг', fontsize=7, bbox={'facecolor':'yellow','alpha':0.2})
+        plt.text(min(self.H), (self.Bmax - 0.2), f'f = {self.freq} Гц, Bmax = {round(self.Bmax, 2)} Тл, P = {round(self.powerLosses, 2)} Вт/кг', fontsize=7, bbox={'facecolor':'yellow','alpha':0.2})
         
         plt.text(min(self.H), (self.Bmax - 0.4), f'Конфигурация обмоток № {int(self.cBox_conf.currentText())}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
         plt.text(min(self.H), (self.Bmax - 0.6), f'Количество слоев N = {int(self.lEd_N.text().replace(',','.'))}', fontsize=5, bbox={'facecolor':'yellow','alpha':0.2})
         tab = plt.table(cellText = data, colWidths = [0.1]*2, colLabels = columnLabels, colColours = ['yellow']*2, loc = 'lower right')
         tab.set_fontsize(10)
-        plt.savefig(os.path.join(graphDir, f"{filename}_hister.jpg"), dpi = 600)
+        plt.savefig(os.path.join(graphDir, f"{filename}@{self.freq}Hz.jpg"), dpi = 600)
         plt.close()
 
     def clear_interface(self):
