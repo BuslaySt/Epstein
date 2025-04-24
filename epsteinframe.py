@@ -5,18 +5,29 @@ import epscalc
 import matplotlib.pyplot as plt
 from pico3204D import Picoscope3204D
 
-class MainUI(QMainWindow):
+class EpsteinFrameUI(QMainWindow):
+    ''' Константы '''
+    TIMEBASE = 127         # 1252 - 10 μs, 127 - 1 μs
+    MAX_ATTEMPTS = 200     # Число попыток добраться до целевого значения
+    NUMBER_OF_SAMPLES = 25 # Базовое число сэмплов в настройках, x10 для измерения
+    AMPINCREMENT = 100000  # Стартовый шаг изменения амплитуды генератора
+    Ch_A_START = 5         # 500mV предел канала А для начала
+    Ch_B_START = 7         # 2V для канала B
+
     def __init__(self):
-        super(MainUI, self).__init__()
+        super(EpsteinFrameUI, self).__init__()
+
+        ''' UI настройки и стили '''
         loadUi("epsdesign.ui", self)
-        
         # Применяем стиль CSS
         qssFile="epsdesign.css"
         with open(qssFile,"r") as fqss:
             self.setStyleSheet(fqss.read())
-
         # Список конфигураций
         self.cBox_conf.addItems(['1','2','3'])
+        # график
+        self.graphWidget.setBackground('w')
+
         # Подключаем обработчики событий на кнопки
         self.pBtn_init.clicked.connect(self.init_pico)
         self.pBtn_start.clicked.connect(self.start)
@@ -25,18 +36,19 @@ class MainUI(QMainWindow):
 
         # секция графика пока не в окончательном состоянии - возможны манипуляции
         self.lists2zero() # обнуление списков с результатами серии измерений
-        #график
-        self.graphWidget.setBackground('w')
-        
+
     def init_pico(self):
         ''' Инициализация осциллографа Picoscope3204D и подключение портов и генератора '''
         if not hasattr(self, 'picoscope'):
             self.picoscope = Picoscope3204D()
         
         # Подключение портов
-        self.limitA = 5 # 500mV на канал А 
-        self.limitB = 7 # 2V на канал B
-        self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
+        self.limitA = self.Ch_A_START
+        self.limitB = self.Ch_B_START
+        self.picoscope.initialize_ports(
+            channelA_range=self.limitA,
+            channelB_range=self.limitB
+        )
 
         # Старт генератора
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
@@ -66,36 +78,36 @@ class MainUI(QMainWindow):
         return ampincrement
 
     def start(self):
-        ''' При нажатии кнопки "Начать измерения" запускаем цикл измерений '''
+        ''' Начать измерения по кнопке '''
         self._message("Начало измерений")
 
+        ''' Обработка интерфейса '''
         # Рабочая частота и целевая индукция задаются пользователем в интерфейсе
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
-        timebase=127 # timebase=1252 == 10 мкс 127 == 1 мкс
         B = float(self.lEd_B.text().replace(',','.')) # целевая магнитная индукция, Тл
         configNumber = int(self.cBox_conf.currentText()) # номер конфигурации катушек на выбор 1 из 3, выбор из списка
 
-        self.lbl_Bmax.clear()
-        self.lbl_powerLosses.clear()
-        
         # Параметры пластин из интерфейса задаются пользователем
         x = float(self.lEd_x.text().replace(',','.'))/1000 # толщина, мм в м
         y = float(self.lEd_y.text().replace(',','.'))/1000 # ширина, мм в м
         N = int(self.lEd_N.text().replace(',','.')) # количество слоев полос, уложенных в рамку
         ro = float(self.lEd_ro.text().replace(',','.')) # плотность материала
-        
+
+        self.lbl_Bmax.clear()
+        self.lbl_powerLosses.clear()
+
         self.init_pico() # Реинициализация каналов и генератора
 
         key = 0 # соответствие измеренной Вм и заданной Вм меняется на 1 по достижении заданной величины индукции, запускает измерение потерь.
         step = 0
-        ampincrement = 100000
+        ampincrement = self.AMPINCREMENT
         print(f'Приращение - {ampincrement/1000}')
 
         while True:
             # Проверка, что текущая индукция меньше целевой, если больше - уменьшаем амплитуду напряжения генератора
-            samples = int(25*100000/self.freq) #50 - 127
+            samples = int(self.NUMBER_OF_SAMPLES*100000/self.freq) #50 - 127
             self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
-            self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
+            self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
 
             match self.picoscope.check_limits(self.data):
                 case 1:
@@ -134,15 +146,15 @@ class MainUI(QMainWindow):
 
         try:
             # цикл увеличения амплитуды генератора до достижения целевой индукции
-            while (not key) and (self.amp < 4000000) and (step < 200):
+            while (not key) and (self.amp < 4000000) and (step < self.MAX_ATTEMPTS):
                 step += 1
                 print(f'Шаг:{step}')
                 self.amp += ampincrement
                 self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
                 self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
-                samples = int(25*100000/self.freq) #50
-                self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
+                samples = int(self.NUMBER_OF_SAMPLES*100000/self.freq) #50
+                self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
                 time.sleep(0.001)
                 # Проверка выхода за пределы каналов
                 match self.picoscope.check_limits(self.data):
@@ -177,8 +189,8 @@ class MainUI(QMainWindow):
                     key = 1
 
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
-            samples = int(250*100000/self.freq)
-            self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
+            samples = int(self.NUMBER_OF_SAMPLES*10*100000/self.freq)
+            self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
 
             sampleParameters = [x, y, N, ro]
             runParameters = [self.data, self.freq, key, configNumber, sampleParameters]
@@ -265,16 +277,16 @@ class MainUI(QMainWindow):
 
     def lists2zero(self):
         ''' Очистка списков с результатами измерений '''
-        self.listOfH = [] # все величины H для построения графиков при сохранении результата
-        self.listOfB = [] # все величины В для построения графиков при сохранении результата
-        self.BmaxList = [] # все величины Вм для построения графиков при сохранении результата
+        self.listOfH = []       # все величины H для построения графиков при сохранении результата
+        self.listOfB = []       # все величины В для построения графиков при сохранении результата
+        self.BmaxList = []      # все величины Вм для построения графиков при сохранении результата
         self.PowerLossList = [] # все величины потерь для построения графиков при сохранении результата
         
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     
     try:
-        epstein = MainUI()
+        epstein = EpsteinFrameUI()
         epstein.show()
         
         # epstein.init_pico()
