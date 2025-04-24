@@ -16,8 +16,6 @@ class EpsteinFrameUI(QMainWindow):
 
     def __init__(self):
         super(EpsteinFrameUI, self).__init__()
-
-        ''' UI настройки и стили '''
         loadUi("epsdesign.ui", self)
         # Применяем стиль CSS
         qssFile="epsdesign.css"
@@ -27,15 +25,13 @@ class EpsteinFrameUI(QMainWindow):
         self.cBox_conf.addItems(['1','2','3'])
         # график
         self.graphWidget.setBackground('w')
+        self.lists2zero() # обнуление списков с результатами серии измерений
 
         # Подключаем обработчики событий на кнопки
         self.pBtn_init.clicked.connect(self.init_pico)
         self.pBtn_start.clicked.connect(self.start)
         self.pBtn_save.clicked.connect(self.save)
         self.pBtn_clear.clicked.connect(self.clear_interface)
-
-        # секция графика пока не в окончательном состоянии - возможны манипуляции
-        self.lists2zero() # обнуление списков с результатами серии измерений
 
     def init_pico(self):
         ''' Инициализация осциллографа Picoscope3204D и подключение портов и генератора '''
