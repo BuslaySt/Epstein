@@ -94,7 +94,11 @@ class MainUI(QMainWindow):
         while True:
             # Проверка, что текущая индукция меньше целевой, если больше - уменьшаем амплитуду напряжения генератора
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             samples = int(50*100000/self.freq) #50 - 127
+=======
+            samples = int(25*100000/self.freq)
+>>>>>>> Stashed changes
 =======
             samples = int(25*100000/self.freq)
 >>>>>>> Stashed changes
@@ -146,7 +150,11 @@ class MainUI(QMainWindow):
                 self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                 samples = int(50*100000/self.freq) #50
+=======
+                samples = int(25*100000/self.freq)
+>>>>>>> Stashed changes
 =======
                 samples = int(25*100000/self.freq)
 >>>>>>> Stashed changes
