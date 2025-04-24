@@ -24,7 +24,7 @@ def run (runParameters):
     
     coilCoef = 4*measuringCoilCount # 4 измерительных катушки в рамке 
     x, y, N, ro = test_parameters
-    currentCoef = 5 #
+    currentCoef = 1.5 #
     ersted2Am = 9.8*79.57 #пересчет из Эрстед в А/м, 9.8 - множитель для конкретного набора катушек
     match configNumber:
         case 1: #150:50
@@ -80,7 +80,7 @@ def get_periods (df, period_number, period):
         finishTime = startTime + period
         
         for i in df.index:
-            if abs(df['time'][i] - finishTime) < 1000: #1
+            if abs(df['time'][i] - finishTime) < 500: #1
                 finishIndex = i
             
         finishIndices.append(finishIndex)

@@ -93,7 +93,7 @@ class MainUI(QMainWindow):
 
         while True:
             # Проверка, что текущая индукция меньше целевой, если больше - уменьшаем амплитуду напряжения генератора
-            samples = int(50*100000/self.freq) #50 - 127
+            samples = int(25*100000/self.freq) #50 - 127
             self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
 
@@ -141,7 +141,7 @@ class MainUI(QMainWindow):
                 self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
                 self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
-                samples = int(50*100000/self.freq) #50
+                samples = int(25*100000/self.freq) #50
                 self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
                 time.sleep(0.001)
                 # Проверка выхода за пределы каналов
@@ -177,7 +177,7 @@ class MainUI(QMainWindow):
                     key = 1
 
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
-            samples = int(200*100000/self.freq)
+            samples = int(250*100000/self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
 
             sampleParameters = [x, y, N, ro]
