@@ -40,7 +40,7 @@ class MainUI(QMainWindow):
 
         # Старт генератора
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
-        self.amp = 500000 #500000 # начальная амплитуда в мкВ
+        self.amp = 700000 #500000 # начальная амплитуда в мкВ
         self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
     def _message(self, message: str):
@@ -50,19 +50,19 @@ class MainUI(QMainWindow):
 
     def _amplificationIncrementCheck(self, Bmax, B) -> int:
         ''' Уменьшение шага прироста амплитуды в зависимости от разницы текущего и целевого значения индукции '''
-        if abs(Bmax-B) < 0.1:
-            ampincrement = self.freq*10
-            print(f'Приращение - {ampincrement/1000} мВ')
+        if abs(Bmax-B) < 0.2:
+            ampincrement = self.freq*100
+            print(f'Приращение 1 - {ampincrement/1000} мВ')
             return ampincrement
         elif abs(Bmax-B) < 0.5:
-            ampincrement = self.freq*50
-            print(f'Приращение - {ampincrement/1000} мВ')
+            ampincrement = self.freq*200
+            print(f'Приращение 2 - {ampincrement/1000} мВ')
             return ampincrement
         elif abs(Bmax-B) < 1:
-            ampincrement = self.freq*200
-            print(f'Приращение - {ampincrement/1000} мВ')
+            ampincrement = self.freq*300
+            print(f'Приращение 3 - {ampincrement/1000} мВ')
             return ampincrement
-        ampincrement = self.freq*500
+        ampincrement = self.freq*1000
         return ampincrement
 
     def start(self):
@@ -88,12 +88,16 @@ class MainUI(QMainWindow):
 
         key = 0 # соответствие измеренной Вм и заданной Вм меняется на 1 по достижении заданной величины индукции, запускает измерение потерь.
         step = 0
-        ampincrement = 50000
+        ampincrement = 100000
         print(f'Приращение - {ampincrement/1000}')
 
         while True:
             # Проверка, что текущая индукция меньше целевой, если больше - уменьшаем амплитуду напряжения генератора
+<<<<<<< Updated upstream
             samples = int(50*100000/self.freq) #50 - 127
+=======
+            samples = int(25*100000/self.freq)
+>>>>>>> Stashed changes
             self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
 
@@ -134,16 +138,20 @@ class MainUI(QMainWindow):
 
         try:
             # цикл увеличения амплитуды генератора до достижения целевой индукции
-            while (not key) and (self.amp < 4000000) and (step < 50):
+            while (not key) and (self.amp < 4000000) and (step < 200):
                 step += 1
                 print(f'Шаг:{step}')
                 self.amp += ampincrement
                 self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
                 self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
+<<<<<<< Updated upstream
                 samples = int(50*100000/self.freq) #50
+=======
+                samples = int(25*100000/self.freq)
+>>>>>>> Stashed changes
                 self.data = self.picoscope.read_data(max_samples=samples, sample_rate=timebase)
-                time.sleep(0.002)
+                time.sleep(0.001)
                 # Проверка выхода за пределы каналов
                 match self.picoscope.check_limits(self.data):
                     case 1:
@@ -188,8 +196,8 @@ class MainUI(QMainWindow):
             self.B = result[2]
             self.powerLosses = result[3]
             
-            self.lbl_Bmax.setText(f'Индукция - {round(self.Bmax, 4)} Тл')
-            self.lbl_powerLosses.setText(f'Потери - {round(self.powerLosses, 4)} Вт/кг')
+            self.lbl_Bmax.setText(f'Индукция - {round(self.Bmax, 3)} Тл')
+            self.lbl_powerLosses.setText(f'Потери - {round(self.powerLosses, 3)} Вт/кг')
             
             #all histeresis saved to file
             self.listOfH.append(self.H)
