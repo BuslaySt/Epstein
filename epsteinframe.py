@@ -170,7 +170,7 @@ class EpsteinFrameUI(QMainWindow):
                 runParameters = [self.data, self.freq, key, configNumber, sampleParameters]
                 result = epscalc.run(runParameters)
                 Bmax = result[0]
-                print(f'Достигнутая индукция - {Bmax} Тл')
+                print(f'Достигнутая индукция - {round(Bmax, 5)} Тл')
 
                 ampincrement = self._amplificationIncrementCheck(Bmax, B)
 
@@ -180,8 +180,9 @@ class EpsteinFrameUI(QMainWindow):
                     self.amp += ampincrement
                     step += 1
 
+            # Основное измерение на большом количестве периодов
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
-            samples = int(self.NUMBER_OF_SAMPLES*10*100000/self.freq)
+            samples = int(10*self.NUMBER_OF_SAMPLES*100000/self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
 
             sampleParameters = [x, y, N, ro]
@@ -194,12 +195,12 @@ class EpsteinFrameUI(QMainWindow):
             
             self.lbl_Bmax.setText(f'Индукция - {round(self.Bmax, 3)} Тл')
             self.lbl_powerLosses.setText(f'Потери - {round(self.powerLosses, 3)} Вт/кг')
-            
-            #all histeresis saved to file
+            print(f'Индукция - {round(self.Bmax, 3)} Тл; Потери - {round(self.powerLosses, 3)} Вт/кг')
+
+            # all histeresis saved to file
             self.listOfH.append(self.H)
             self.listOfB.append(self.B)
 
-            print(self.Bmax, self.powerLosses)
             self.BmaxList.append(round(self.Bmax, 3)) # правка для вывода таблицы
             self.PowerLossList.append(round(self.powerLosses, 3))
             self.plotData()
@@ -207,7 +208,7 @@ class EpsteinFrameUI(QMainWindow):
             if self.Bmax < B:
                 message = "Целевое значение индукции не достигнуто"
             else:
-                message = "Измерение завершено"
+                message = "Измерение завершено, целевая индукция достигнута"
             self._message(message)
 
         except Exception as e:
