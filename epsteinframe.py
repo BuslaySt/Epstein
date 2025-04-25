@@ -170,7 +170,7 @@ class EpsteinFrameUI(QMainWindow):
                 runParameters = [self.data, self.freq, key, configNumber, sampleParameters]
                 result = epscalc.run(runParameters)
                 Bmax = result[0]
-                print(Bmax)
+                print(f'Достигнутая индукция - {Bmax} Тл')
 
                 ampincrement = self._amplificationIncrementCheck(Bmax, B)
 
