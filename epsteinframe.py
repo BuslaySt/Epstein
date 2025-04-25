@@ -10,7 +10,7 @@ class EpsteinFrameUI(QMainWindow):
     TIMEBASE = 127         # 1252 - 10 μs, 127 - 1 μs
     MAX_ATTEMPTS = 200     # Число попыток добраться до целевого значения
     NUMBER_OF_SAMPLES = 25 # Базовое число сэмплов в настройках, x10 для измерения
-    AMPINCREMENT = 100000  # Стартовый шаг изменения амплитуды генератора
+    AMPINCREMENT = 100000  # Стартовый шаг изменения амплитуды генератора в мкВ
     Ch_A_START = 5         # 500mV предел канала А для начала
     Ch_B_START = 7         # 2V для канала B
 
@@ -27,7 +27,7 @@ class EpsteinFrameUI(QMainWindow):
         self.graphWidget.setBackground('w')
         self.lists2zero() # обнуление списков с результатами серии измерений
 
-        # Подключаем обработчики событий на кнопки
+        # Обработчики событий на кнопки
         self.pBtn_init.clicked.connect(self.init_pico)
         self.pBtn_start.clicked.connect(self.start)
         self.pBtn_save.clicked.connect(self.save)
@@ -101,30 +101,28 @@ class EpsteinFrameUI(QMainWindow):
 
         while True:
             # Проверка, что текущая индукция меньше целевой, если больше - уменьшаем амплитуду напряжения генератора
-            samples = int(self.NUMBER_OF_SAMPLES*100000/self.freq) #50 - 127
+            samples = int(self.NUMBER_OF_SAMPLES*100000/self.freq) # 50 - 127
             self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
 
+            # Подстройка диапазона измерений каналов осциллографа
             match self.picoscope.check_limits(self.data):
                 case 1:
                     if self.limitA < 10:
+                        self._message("Увеличиваем предел измерения канала A")
                         self.limitA += 1
+                        continue
                     else:
-                        self._message("Достигнут предел по каналу A")
+                        self._message("Достигнут предел измерения канала A")
                         break
-                    self.amp -= ampincrement
-                    step -= 1
-                    continue
                 case 2:
                     if self.limitB < 10:
+                        self._message("Увеличиваем предел измерения канала B")
                         self.limitB += 1
-                        print(self.limitB)
+                        continue
                     else:
-                        self._message("Достигнут предел по каналу B")
+                        self._message("Достигнут предел измерения канала B")
                         break
-                    self.amp -= ampincrement
-                    step -= 1
-                    continue
 
             sampleParameters = [x, y, N, ro]
             runParameters = [self.data, self.freq, key, configNumber, sampleParameters]
@@ -138,14 +136,11 @@ class EpsteinFrameUI(QMainWindow):
                 break
 
         ampincrement = self._amplificationIncrementCheck(Bmax, B)
-        self.amp -= ampincrement
 
         try:
             # цикл увеличения амплитуды генератора до достижения целевой индукции
             while (not key) and (self.amp < 4000000) and (step < self.MAX_ATTEMPTS):
-                step += 1
                 print(f'Шаг:{step}')
-                self.amp += ampincrement
                 self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
                 self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
@@ -156,22 +151,20 @@ class EpsteinFrameUI(QMainWindow):
                 match self.picoscope.check_limits(self.data):
                     case 1:
                         if self.limitA < 10:
+                            self._message("Увеличиваем предел измерения канала A")
                             self.limitA += 1
+                            continue
                         else:
-                            self._message("Достигнут предел по каналу A")
+                            self._message("Достигнут предел измерения канала A")
                             break
-                        self.amp -= ampincrement
-                        step -= 1
-                        continue
                     case 2:
                         if self.limitB < 10:
+                            self._message("Увеличиваем предел измерения канала B")
                             self.limitB += 1
+                            continue
                         else:
-                            self._message("Достигнут предел по каналу B")
+                            self._message("Достигнут предел измерения канала B")
                             break
-                        self.amp -= ampincrement
-                        step -= 1
-                        continue
 
                 sampleParameters = [x, y, N, ro]
                 runParameters = [self.data, self.freq, key, configNumber, sampleParameters]
@@ -183,6 +176,9 @@ class EpsteinFrameUI(QMainWindow):
 
                 if Bmax >= B:
                     key = 1
+                else:
+                    self.amp += ampincrement
+                    step += 1
 
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
             samples = int(self.NUMBER_OF_SAMPLES*10*100000/self.freq)
