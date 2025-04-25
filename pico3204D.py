@@ -146,28 +146,29 @@ class Picoscope3204D:
             trigger_type (str): Trigger type ('RISING', 'FALLING', 'NONE')
         """
         # Output a sine wave with peak-to-peak voltage of 2 V and frequency of 10 kHz
-        # handle = chandle
-        # offsetVoltage = 0
-        # pkToPk = +-2000000 ; max +-2 V
         self.amplitude = amplitude
-        # waveType = ctypes.c_int16(0) = PS3000A_SINE
         wavetype = ctypes.c_int16(0)
-        # startFrequency = 50 Hz
-        # stopFrequency = 50 Hz
         self.frequency = frequency
-        # increment = 0
-        # dwellTime = 1
-        # sweepType = ctypes.c_int16(1) = PS3000A_UP
         sweepType = ctypes.c_int32(0)
-        # operation = 0
-        # shots = 0
-        # sweeps = 0
-        # triggerType = ctypes.c_int16(0) = PS3000A_SIGGEN_RISING
         triggertype = ctypes.c_int32(0)
-        # triggerSource = ctypes.c_int16(0) = P3000A_SIGGEN_NONE
         triggerSource = ctypes.c_int32(0)
-        # extInThreshold = 1
-        self.status["SetSigGenBuiltIn"] = ps.ps3000aSetSigGenBuiltIn(self.chandle, 0, self.amplitude, wavetype, self.frequency, self.frequency, 0, 1, sweepType, 0, 4, 0, triggertype, triggerSource, 1)
+        self.status["SetSigGenBuiltIn"] = ps.ps3000aSetSigGenBuiltIn(
+            self.chandle,       # handle = chandle
+            0,                  # offsetVoltage = 0 V
+            self.amplitude,     # pkToPk = +-2000000 μV ; max +-2 V
+            wavetype,           # waveType = ctypes.c_int16(0) = PS3000A_SINE
+            self.frequency,     # startFrequency, Hz, the frequency that the signal generator will initially produce
+            self.frequency,     # stopFrequency, Hz, the frequency at which the sweep reverses direction or returns to the initial frequency
+            0,                  # increment = 0, the amount of frequency increase or decrease in sweep mode
+            1,                  # dwellTime = 1, the time for which the sweep stays at each frequency, in seconds
+            sweepType,          # sweepType = ctypes.c_int16(1) = PS3000A_UP
+            0,                  # operation = 0 = PS3000A_ES_OFF, normal signal generator operation specified by wavetype.
+            0,                  # shots = 0: sweep the frequency as specified by sweeps
+            0,                  # sweeps = 0: produce number of cycles specified by shots
+            triggertype,        # triggerType = ctypes.c_int16(0) = PS3000A_SIGGEN_RISING
+            triggerSource,      # triggerSource = ctypes.c_int16(0) = P3000A_SIGGEN_NONE
+            1                   # extInThreshold = 1
+        )
         assert_pico_ok(self.status["SetSigGenBuiltIn"])
 
         print(f"Generator set up with {frequency} Hz and {amplitude/1000} mV.")
