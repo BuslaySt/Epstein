@@ -191,10 +191,6 @@ class Picoscope3204D:
         self.maxsamples = max_samples
 
         # Gets timebase infomation
-        # WARNING: When using this example it may not be possible to access all Timebases as all channels are enabled by default when opening the scope.  
-        # To access these Timebases, set any unused analogue channels to off.
-        # Handle = chandle
-        # Timebase = 2 = timebase
         # Nosample = maxsamples
         # TimeIntervalNanoseconds = ctypes.byref(timeIntervalns)
         # MaxSamples = ctypes.byref(returnedMaxSamples)
@@ -202,7 +198,15 @@ class Picoscope3204D:
         self.timebase = sample_rate # 1252 == 10 mks
         timeIntervalns = ctypes.c_float()
         returnedMaxSamples = ctypes.c_int16()
-        self.status["GetTimebase"] = ps.ps3000aGetTimebase2(self.chandle, self.timebase, self.maxsamples, ctypes.byref(timeIntervalns), 1, ctypes.byref(returnedMaxSamples), 0)
+        self.status["GetTimebase"] = ps.ps3000aGetTimebase2(
+            self.chandle,                   # Handle = chandle
+            self.timebase,                  # Timebase = 2 = timebase
+            self.maxsamples,                # No of samples
+            ctypes.byref(timeIntervalns),   # TimeIntervalNanoseconds, a pointer to the time interval between readings at the selected timebase. NULL
+            1,                              # oversample, not used
+            ctypes.byref(returnedMaxSamples), # maxSamples, on exit, the maximum number of samples available. NULL
+            0                               # segmentIndex, the index of the memory segment to use
+        )
         assert_pico_ok(self.status["GetTimebase"])
 
         # Creates a overlow location for data
@@ -211,15 +215,17 @@ class Picoscope3204D:
         cmaxSamples = ctypes.c_int32(self.maxsamples)
 
         # Starts the block capture
-        # Handle = chandle
-        # Number of prTriggerSamples
-        # Number of postTriggerSamples
-        # Timebase = 2 = 4ns (see Programmer's guide for more information on timebases)
-        # time indisposed ms = None (This is not needed within the example)
-        # Segment index = 0
-        # LpRead = None
-        # pParameter = None
-        self.status["runblock"] = ps.ps3000aRunBlock(self.chandle, preTriggerSamples, postTriggerSamples, self.timebase, 1, None, 0, None, None)
+        self.status["runblock"] = ps.ps3000aRunBlock(
+            self.chandle,       # Handle = chandle
+            preTriggerSamples,  # Number of prTriggerSamples
+            postTriggerSamples, # Number of postTriggerSamples
+            self.timebase,      # Timebase = 2 = 4ns
+            1,                  # oversample, not used
+            None,               # time indisposed ms = None
+            0,                  # segmentIndex = 0, zero-based, specifies which memory segment to use
+            None,               # LpRead = None
+            None                # pParameter = None
+        )
         assert_pico_ok(self.status["runblock"])
 
         # Create buffers ready for assigning pointers for data collection
@@ -234,22 +240,20 @@ class Picoscope3204D:
 
 
         # Set data buffer location for data collection from channel A
-        # handle = chandle
-        # source = PS3000A_CHANNEL_A = 0
+
         # pointer to buffer max = ctypes.byref(bufferAMax)
         # pointer to buffer min = ctypes.byref(bufferAMin)
-        # buffer length = maxSamples
-        # segment index = 0
-        # ratio mode = PS3000A_RATIO_MODE_NONE = 0
+        
         # self.status["SetDataBuffers"] = ps.ps3000aSetDataBuffers(self.chandle, 0, ctypes.byref(bufferAMax), ctypes.byref(bufferAMin), maxsamples, 0, 0)
         # assert_pico_ok(self.status["SetDataBuffers"])
-        self.status["setDataBuffersA"] = ps.ps3000aSetDataBuffers(self.chandle,
-                                                            ps.PS3000A_CHANNEL['PS3000A_CHANNEL_A'],
-                                                            ctypes.byref(bufferAMax), #bufferAMax.ctypes.data_as(ctypes.POINTER(ctypes.c_int16)),
+        self.status["setDataBuffersA"] = ps.ps3000aSetDataBuffers(self.chandle,                         # handle = chandle
+                                                            ps.PS3000A_CHANNEL['PS3000A_CHANNEL_A'],    # source = PS3000A_CHANNEL_A = 0
+                                                            ctypes.byref(bufferAMax),                   #bufferAMax.ctypes.data_as(ctypes.POINTER(ctypes.c_int16)),
                                                             None,
-                                                            self.maxsamples,
-                                                            0,
-                                                            ps.PS3000A_RATIO_MODE['PS3000A_RATIO_MODE_NONE'])
+                                                            self.maxsamples,                            # buffer length = maxSamples
+                                                            0,                                          # segment index = 0
+                                                            ps.PS3000A_RATIO_MODE['PS3000A_RATIO_MODE_NONE'] # ratio mode = PS3000A_RATIO_MODE_NONE = 0
+        )
         assert_pico_ok(self.status["setDataBuffersA"])
 
         # Set data buffer location for data collection from channel B
