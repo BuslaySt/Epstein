@@ -1,16 +1,16 @@
 import time, os, sys
 from PyQt5.QtWidgets import QMainWindow, QApplication
 from PyQt5.uic import loadUi
-import epscalc
+import epscalc, traceback
 import matplotlib.pyplot as plt
 from pico3204D import Picoscope3204D
 
 class EpsteinFrameUI(QMainWindow):
     ''' Константы '''
     TIMEBASE = 127         # 1252 - 10 μs, 127 - 1 μs
-    MAX_ATTEMPTS = 200     # Число попыток добраться до целевого значения
+    MAX_ATTEMPTS = 50     # Число попыток добраться до целевого значения
     NUMBER_OF_SAMPLES = 25 # Базовое число сэмплов в настройках, x10 для измерения
-    AMPINCREMENT = 100000  # Стартовый шаг изменения амплитуды генератора в мкВ
+    AMPSTEP = 500000  # Стартовый шаг изменения амплитуды генератора в мкВ
     Ch_A_START = 5         # 500mV предел канала А для начала
     Ch_B_START = 7         # 2V для канала B
 
@@ -95,10 +95,10 @@ class EpsteinFrameUI(QMainWindow):
         self.init_pico()  # Реинициализация каналов и генератора
 
         # Начальные параметры для метода маятника
-        amp_step = 500000  # начальный шаг амплитуды
+        amp_step = self.AMPSTEP  # начальный шаг амплитуды
         direction = 1      # направление изменения (1 - увеличение, -1 - уменьшение)
         attempts = 0
-        max_attempts = 20  # максимальное количество итераций
+        max_attempts = self.MAX_ATTEMPTS  # максимальное количество итераций
 
         try:
             # Метод маятника для достижения целевой индукции
