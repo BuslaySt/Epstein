@@ -24,6 +24,7 @@ def run (runParameters):
     
     coilCoef = 4*measuringCoilCount # 4 измерительных катушки в рамке 
     x, y, N, ro = test_parameters
+
     currentCoef = 1 #
     ersted2Am = 9.8*79.57 #пересчет из Эрстед в А/м, 9.8 - множитель для конкретного набора катушек
     match configNumber:
