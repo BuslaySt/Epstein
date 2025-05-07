@@ -1,18 +1,30 @@
 import time, os, sys
 from PyQt5.QtWidgets import QMainWindow, QApplication
 from PyQt5.uic import loadUi
-import epscalc
+import epscalc, traceback
 import matplotlib.pyplot as plt
 from pico3204D import Picoscope3204D
 
 class EpsteinFrameUI(QMainWindow):
     ''' Константы '''
     TIMEBASE = 127         # 1252 - 10 μs, 127 - 1 μs
-    MAX_ATTEMPTS = 200     # Число попыток добраться до целевого значения
-    NUMBER_OF_SAMPLES = 25 # Базовое число сэмплов в настройках, x10 для измерения
-    AMPINCREMENT = 100000  # Стартовый шаг изменения амплитуды генератора в мкВ
-    Ch_A_START = 5         # 500mV предел канала А для начала
-    Ch_B_START = 7         # 2V для канала B
+    MAX_ATTEMPTS = 50     # Число попыток добраться до целевого значения
+    NUMBER_OF_SAMPLES = 25*100000 # Базовое число сэмплов в настройках, x10 для измерения
+    STARTAMP = 200000  # 200000 начальная амплитуда в мкВ
+    AMPSTEP = 200000  # Стартовый шаг изменения амплитуды генератора в мкВ
+    Ch_A_START = 2      # 50mV предел канала А для начала
+    Ch_B_START = 4      # 200mV для канала B
+                        # 0  == PS3000A_10MV:  ±10 mV - нет
+                        # 1  == PS3000A_20MV:  ±20 mV - нет
+                        # 2  == PS3000A_50MV:  ±50 mV
+                        # 3  == PS3000A_100MV: ±100 mV
+                        # 4  == PS3000A_200MV: ±200 mV
+                        # 5  == PS3000A_500MV: ±500 mV
+                        # 6  == PS3000A_1V:    ±1 V
+                        # 7  == PS3000A_2V:    ±2 V
+                        # 8  == PS3000A_5V:    ±5 V
+                        # 9  == PS3000A_10V:   ±10 V
+                        # 10 == PS3000A_20V:   ±20 V
 
     def __init__(self):
         super(EpsteinFrameUI, self).__init__()
@@ -48,7 +60,7 @@ class EpsteinFrameUI(QMainWindow):
 
         # Старт генератора
         self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
-        self.amp = 700000 #500000 # начальная амплитуда в мкВ
+        self.amp = self.STARTAMP #500000 начальная амплитуда в мкВ
         self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
     def _message(self, message: str):
@@ -56,163 +68,122 @@ class EpsteinFrameUI(QMainWindow):
         print(message)
         self.statusBar.showMessage(message)
 
-    def _amplificationIncrementCheck(self, Bmax, B) -> int:
-        ''' Уменьшение шага прироста амплитуды в зависимости от разницы текущего и целевого значения индукции '''
-        if abs(Bmax-B) < 0.2:
-            ampincrement = self.freq*100
-            print(f'Приращение 1 - {ampincrement/1000} мВ')
-            return ampincrement
-        elif abs(Bmax-B) < 0.5:
-            ampincrement = self.freq*200
-            print(f'Приращение 2 - {ampincrement/1000} мВ')
-            return ampincrement
-        elif abs(Bmax-B) < 1:
-            ampincrement = self.freq*300
-            print(f'Приращение 3 - {ampincrement/1000} мВ')
-            return ampincrement
-        ampincrement = self.freq*1000
-        return ampincrement
-
     def start(self):
         ''' Начать измерения по кнопке '''
         self._message("Начало измерений")
 
-        ''' Обработка интерфейса '''
-        # Рабочая частота и целевая индукция задаются пользователем в интерфейсе
-        self.freq = int(self.lEd_f.text().replace(',','.')) # частота генератора, Гц
-        B = float(self.lEd_B.text().replace(',','.')) # целевая магнитная индукция, Тл
-        configNumber = int(self.cBox_conf.currentText()) # номер конфигурации катушек на выбор 1 из 3, выбор из списка
+        ''' Получение параметров из интерфейса '''
+        self.freq = int(self.lEd_f.text().replace(',','.'))  # частота генератора, Гц
+        target_B = float(self.lEd_B.text().replace(',','.'))  # целевая магнитная индукция, Тл
+        configNumber = int(self.cBox_conf.currentText())  # номер конфигурации катушек
 
-        # Параметры пластин из интерфейса задаются пользователем
-        x = float(self.lEd_x.text().replace(',','.'))/1000 # толщина, мм в м
-        y = float(self.lEd_y.text().replace(',','.'))/1000 # ширина, мм в м
-        N = int(self.lEd_N.text().replace(',','.')) # количество слоев полос, уложенных в рамку
-        ro = float(self.lEd_ro.text().replace(',','.')) # плотность материала
+        # Параметры пластины
+        x = float(self.lEd_x.text().replace(',','.'))/1000  # толщина, мм в м
+        y = float(self.lEd_y.text().replace(',','.'))/1000  # ширина, мм в м
+        N = int(self.lEd_N.text().replace(',','.'))  # количество слоев
+        ro = float(self.lEd_ro.text().replace(',','.'))  # плотность материала
+        sampleParameters = [x, y, N, ro]
 
         self.lbl_Bmax.clear()
         self.lbl_powerLosses.clear()
 
-        self.init_pico() # Реинициализация каналов и генератора
+        self.init_pico()  # Реинициализация каналов и генератора
 
-        key = 0 # соответствие измеренной Вм и заданной Вм меняется на 1 по достижении заданной величины индукции, запускает измерение потерь.
-        step = 0
-        ampincrement = self.AMPINCREMENT
-        print(f'Приращение - {ampincrement/1000}')
-
-        while True:
-            # Проверка, что текущая индукция меньше целевой, если больше - уменьшаем амплитуду напряжения генератора
-            samples = int(self.NUMBER_OF_SAMPLES*100000/self.freq) # 50 - 127
-            self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
-            self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
-
-            # Подстройка диапазона измерений каналов осциллографа
-            match self.picoscope.check_limits(self.data):
-                case 1:
-                    if self.limitA < 10:
-                        self._message("Увеличиваем предел измерения канала A")
-                        self.limitA += 1
-                        continue
-                    else:
-                        self._message("Достигнут предел измерения канала A")
-                        break
-                case 2:
-                    if self.limitB < 10:
-                        self._message("Увеличиваем предел измерения канала B")
-                        self.limitB += 1
-                        continue
-                    else:
-                        self._message("Достигнут предел измерения канала B")
-                        break
-
-            sampleParameters = [x, y, N, ro]
-            runParameters = [self.data, self.freq, key, configNumber, sampleParameters]
-            result = epscalc.run(runParameters)
-            Bmax = result[0]
-            print(Bmax)
-            if Bmax > B:
-                self.amp -= ampincrement
-                self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
-            else:
-                break
-
-        ampincrement = self._amplificationIncrementCheck(Bmax, B)
+        # Начальные параметры для метода маятника
+        amp_step = self.AMPSTEP  # начальный шаг амплитуды
+        direction = 1      # направление изменения (1 - увеличение, -1 - уменьшение)
+        attempts = 0
+        nWaves = 1
+        max_attempts = self.MAX_ATTEMPTS  # максимальное количество итераций
 
         try:
-            # цикл увеличения амплитуды генератора до достижения целевой индукции
-            while (not key) and (self.amp < 4000000) and (step < self.MAX_ATTEMPTS):
-                print(f'Шаг:{step}')
+            # Метод маятника для достижения целевой индукции
+            while attempts < max_attempts:
                 self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
                 self.picoscope.setup_generator(frequency=self.freq, amplitude=self.amp)
 
-                samples = int(self.NUMBER_OF_SAMPLES*100000/self.freq) #50
+                # Сбор данных
+                samples = int(nWaves * self.NUMBER_OF_SAMPLES / self.freq)
                 self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
-                time.sleep(0.001)
-                # Проверка выхода за пределы каналов
-                match self.picoscope.check_limits(self.data):
-                    case 1:
-                        if self.limitA < 10:
-                            self._message("Увеличиваем предел измерения канала A")
-                            self.limitA += 1
-                            continue
-                        else:
-                            self._message("Достигнут предел измерения канала A")
-                            break
-                    case 2:
-                        if self.limitB < 10:
-                            self._message("Увеличиваем предел измерения канала B")
-                            self.limitB += 1
-                            continue
-                        else:
-                            self._message("Достигнут предел измерения канала B")
-                            break
+                
+                # Проверка пределов измерения
+                limits_check = self.picoscope.check_limits(self.data)
+                if limits_check == 1 and self.limitA < 10:
+                    self._message("Увеличиваем предел измерения канала A")
+                    self.limitA += 1
+                    continue
+                elif limits_check == 2 and self.limitB < 10:
+                    self._message("Увеличиваем предел измерения канала B")
+                    self.limitB += 1
+                    continue
+                elif limits_check != 0:
+                    self._message("Достигнут предел измерения")
+                    break
 
-                sampleParameters = [x, y, N, ro]
-                runParameters = [self.data, self.freq, key, configNumber, sampleParameters]
+                # Расчет текущей индукции
+                runParameters = [self.data, self.freq, 0, configNumber, sampleParameters]
                 result = epscalc.run(runParameters)
-                Bmax = result[0]
-                print(f'Достигнутая индукция - {round(Bmax, 5)} Тл')
+                current_Bmax = result[0]
+                self._message(f"Попытка {attempts}: Амплитуда={self.amp}, Bmax={round(current_Bmax, 3)} Тл")
 
-                ampincrement = self._amplificationIncrementCheck(Bmax, B)
-
-                if Bmax >= B:
-                    key = 1
+                # Логика маятника
+                if (current_Bmax < target_B and direction > 0) or (current_Bmax > target_B and direction < 0):
+                    # Продолжаем движение в том же направлении
+                    self.amp += direction * amp_step
+                    if self.amp >= 4000000:
+                        self.amp = 4000000
+                        self._message("Достигнут максимум генератора (4V)")
+                        break
                 else:
-                    self.amp += ampincrement
-                    step += 1
+                    # Меняем направление и уменьшаем шаг
+                    direction *= -1
+                    self._message('Разворот маятника')
+                    nWaves += 1
+                    amp_step = max(amp_step // 2, 1000)  # Уменьшаем шаг, но не меньше минимального
+                    self.amp += direction * amp_step
+                    
+                    # Если шаг стал маленьким, значит мы близко к цели
+                    if amp_step <= 1000:
+                        break
+
+                attempts += 1
 
             # Основное измерение на большом количестве периодов
+            nWaves = 10 # Число сэмплов увеличиваем в 10 раз от настроечного
+            self._message("Выполняем основное измерение...")
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
-            samples = int(10*self.NUMBER_OF_SAMPLES*100000/self.freq)
+            samples = int(nWaves * self.NUMBER_OF_SAMPLES / self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
 
-            sampleParameters = [x, y, N, ro]
-            runParameters = [self.data, self.freq, key, configNumber, sampleParameters]
+            # Финальный расчет
+            runParameters = [self.data, self.freq, 1, configNumber, sampleParameters]
             result = epscalc.run(runParameters)
             self.Bmax = result[0]
             self.H = result[1]
             self.B = result[2]
             self.powerLosses = result[3]
             
+            # Вывод результатов
             self.lbl_Bmax.setText(f'Индукция - {round(self.Bmax, 3)} Тл')
             self.lbl_powerLosses.setText(f'Потери - {round(self.powerLosses, 3)} Вт/кг')
-            print(f'Индукция - {round(self.Bmax, 3)} Тл; Потери - {round(self.powerLosses, 3)} Вт/кг')
+            self._message(f'Финальный результат: Индукция - {round(self.Bmax, 3)} Тл; Потери - {round(self.powerLosses, 3)} Вт/кг')
 
-            # all histeresis saved to file
+            # Сохранение данных гистерезиса
             self.listOfH.append(self.H)
             self.listOfB.append(self.B)
-
-            self.BmaxList.append(round(self.Bmax, 3)) # правка для вывода таблицы
+            self.BmaxList.append(round(self.Bmax, 3))
             self.PowerLossList.append(round(self.powerLosses, 3))
             self.plotData()
 
-            if self.Bmax < B:
-                message = "Целевое значение индукции не достигнуто"
+            # Проверка достижения целевой индукции
+            if abs(self.Bmax - target_B) / target_B > 0.05:  # допуск 5%
+                self._message(f"Целевая индукция не достигнута. Получено {round(self.Bmax, 3)} Тл при цели {target_B} Тл")
             else:
-                message = "Измерение завершено, целевая индукция достигнута"
-            self._message(message)
+                self._message("Измерение успешно завершено")
 
         except Exception as e:
-            self._message(f"Что-то пошло не так при измерениях: {e}")
+            self._message(f"Ошибка при измерениях: {str(e)}")
+            print(f"Ошибка: {traceback.format_exc()}")
 
     def save(self):
         ''' Обработка нажатия кнопки "Сохранить результат" '''
