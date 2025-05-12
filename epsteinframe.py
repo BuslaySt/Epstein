@@ -68,6 +68,32 @@ class EpsteinFrameUI(QMainWindow):
         print(message)
         self.statusBar.showMessage(message)
 
+    def _remove_outliers(series: pd.Series, threshold=3) -> pd.Series:
+        median = series.median()
+        mad = (series - median).abs().median()
+        modified_z_score = 0.6745 * (series - median) / mad
+        return series[modified_z_score < threshold]
+
+    def _get_limits(max) -> int:
+        if max < 50:
+            return 2
+        if max < 100:
+            return 3
+        if max < 200:
+            return 4
+        if max < 500:
+            return 5
+        if max < 1000:
+            return 6
+        if max < 2000:
+            return 7
+        if max < 5000:
+            return 8
+        if max < 10000:
+            return 9
+        if max < 20000:
+            return 10
+
     def start(self):
         ''' Начать измерения по кнопке '''
         self._message("Начало измерений")
@@ -123,17 +149,16 @@ class EpsteinFrameUI(QMainWindow):
                 # Расчет текущей индукции
                 runParameters = [self.data, self.freq, 0, configNumber, sampleParameters]
                 result = epscalc.run(runParameters)
-                current_Bmax = result[0]
-                self._message(f"Попытка {attempts}: Амплитуда={self.amp}, Bmax={round(current_Bmax, 3)} Тл")
+                current_B = result[0]
+                self._message(f"Попытка {attempts}: Амплитуда={self.amp}, Bmax={round(current_B, 3)} Тл")
 
                 # Логика маятника
-                if (current_Bmax < target_B and direction > 0) or (current_Bmax > target_B and direction < 0):
+                if (current_B < target_B and direction > 0) or (current_B > target_B and direction < 0):
                     # Продолжаем движение в том же направлении
                     self.amp += direction * amp_step
-                    if self.amp >= 4000000:
-                        self.amp = 4000000
+                    if (direction * self.amp) >=  4000000:
+                        self.amp = direction * 4000000
                         self._message("Достигнут максимум генератора (4V)")
-                        break
                 else:
                     # Меняем направление и уменьшаем шаг
                     direction *= -1
@@ -148,9 +173,29 @@ class EpsteinFrameUI(QMainWindow):
 
                 attempts += 1
 
-            # Основное измерение на большом количестве периодов
-            nWaves = 10 # Число сэмплов увеличиваем в 10 раз от настроечного
+            # Тестовое измерение на большом количестве периодов и увеличенном пределе измерения
+            self._message("Выполняем тестовое измерение...")
+            self.limitA = max(self.limitA + 1, 10)
+            self.limitB = max(self.limitB + 1, 10)
+            self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
+            nWaves = 5 # Число сэмплов увеличиваем в 5 раз от настроечного
+            self.picoscope.setup_generator(self.freq, amplitude=self.amp)
+            samples = int(nWaves * self.NUMBER_OF_SAMPLES / self.freq)
+            self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
+
+            # Убираем выбросы
+            self.data['ch_A'] = self._remove_outliers(self.data['ch_A'])
+            self.data['ch_B'] = self._remove_outliers(self.data['ch_B'])
+            self.data = self.data.interpolate()
+
+            # Выбираем пределы каналов
+            self.limitA = self._get_limits(self.data['ch_A'].abs().max())
+            self.limitB = self._get_limits(self.data['ch_B'].abs().max())
+
+            # Финальное измерение на большом количестве периодов
             self._message("Выполняем основное измерение...")
+            self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
+            nWaves = 10 # Число сэмплов увеличиваем в 10 раз от настроечного
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
             samples = int(nWaves * self.NUMBER_OF_SAMPLES / self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)

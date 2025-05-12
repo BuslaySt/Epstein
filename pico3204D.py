@@ -55,7 +55,7 @@ class Picoscope3204D:
             assert_pico_ok(self.status["ChangePowerSource"])
         print("Picoscope initialized successfully.")
         
-    def initialize_ports(self, channelA_range=5, channelB_range=7):
+    def initialize_ports(self, channelA_range=2, channelB_range=4):
         """
         Configure the Picoscope channels A and B with specified ranges.
         
@@ -332,19 +332,16 @@ class Picoscope3204D:
         ch_A_lim = self.POWER_RANGE[self.channelA_range]
         ch_B_lim = self.POWER_RANGE[self.channelB_range]
 
-        ch_A_min = df['ch_A'].min()
-        ch_A_max = df['ch_A'].max()
-        ch_B_min = df['ch_B'].min()
-        ch_B_max = df['ch_B'].max()
+        ch_A_max = df['ch_A'].abs().max()
+        ch_B_max = df['ch_B'].abs().max()
 
-        if ((ch_A_min > -ch_A_lim) and (ch_A_max < ch_A_lim) and
-           (ch_B_min > -ch_B_lim) and (ch_B_max < ch_B_lim)):
+        if (ch_A_max < ch_A_lim) and (ch_B_max < ch_B_lim):
             print("В пределах измерений каналов")
             return 0
-        if (ch_A_min <= -ch_A_lim) or (ch_A_max >= ch_A_lim):
+        if ch_A_max >= ch_A_lim:
             print("выход за пределы измерения канала А")
             return 1
-        if (ch_B_min <= -ch_B_lim) or (ch_B_max >= ch_B_lim):
+        if ch_B_max >= ch_B_lim:
             print("выход за пределы измерения канала B")    
             return 2
 
