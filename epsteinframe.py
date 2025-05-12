@@ -68,13 +68,15 @@ class EpsteinFrameUI(QMainWindow):
         print(message)
         self.statusBar.showMessage(message)
 
-    def _remove_outliers(series: pd.Series, threshold=3) -> pd.Series:
+    def _remove_outliers(self, series, threshold=3):
+        ''' Удаление выбросов по Z-параметру '''
         median = series.median()
         mad = (series - median).abs().median()
         modified_z_score = 0.6745 * (series - median) / mad
         return series[modified_z_score < threshold]
 
-    def _get_limits(max) -> int:
+    def _get_limits(self, max) -> int:
+        ''' Выбор подходящего предела измерений по максимальной амплитуде сигнала '''
         if max < 50:
             return 2
         if max < 100:
@@ -150,7 +152,10 @@ class EpsteinFrameUI(QMainWindow):
                 runParameters = [self.data, self.freq, 0, configNumber, sampleParameters]
                 result = epscalc.run(runParameters)
                 current_B = result[0]
-                self._message(f"Попытка {attempts}: Амплитуда={self.amp}, Bmax={round(current_B, 3)} Тл")
+                self._message(f"Попытка {attempts}: Амплитуда={self.amp}, Шаг={amp_step}, Bmax={round(current_B, 3)} Тл")
+
+                if abs(current_B - target_B) / target_B < 0.02:
+                    break
 
                 # Логика маятника
                 if (current_B < target_B and direction > 0) or (current_B > target_B and direction < 0):
@@ -167,10 +172,6 @@ class EpsteinFrameUI(QMainWindow):
                     amp_step = max(amp_step // 2, 1000)  # Уменьшаем шаг, но не меньше минимального
                     self.amp += direction * amp_step
                     
-                    # Если шаг стал маленьким, значит мы близко к цели
-                    if amp_step <= 1000:
-                        break
-
                 attempts += 1
 
             # Тестовое измерение на большом количестве периодов и увеличенном пределе измерения
@@ -186,12 +187,14 @@ class EpsteinFrameUI(QMainWindow):
             # Убираем выбросы
             self.data['ch_A'] = self._remove_outliers(self.data['ch_A'])
             self.data['ch_B'] = self._remove_outliers(self.data['ch_B'])
+            print(f'Наличине выбросов A - {self.data.ch_A.isnull().sum()}')
+            print(f'Наличине выбросов B - {self.data.ch_B.isnull().sum()}')
             self.data = self.data.interpolate()
 
             # Выбираем пределы каналов
             self.limitA = self._get_limits(self.data['ch_A'].abs().max())
             self.limitB = self._get_limits(self.data['ch_B'].abs().max())
-
+                
             # Финальное измерение на большом количестве периодов
             self._message("Выполняем основное измерение...")
             self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
@@ -199,6 +202,13 @@ class EpsteinFrameUI(QMainWindow):
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
             samples = int(nWaves * self.NUMBER_OF_SAMPLES / self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
+            
+            self.data['ch_A'] = self._remove_outliers(self.data['ch_A'])
+            self.data['ch_B'] = self._remove_outliers(self.data['ch_B'])
+            print(f'Наличине выбросов A - {self.data.ch_A.isnull().sum()}')
+            print(f'Наличине выбросов B - {self.data.ch_B.isnull().sum()}')
+            print(f'Предел канала A - {self.picoscope.POWER_RANGE[self.limitA]}, при максимуме амплитуды - {self.data['ch_A'].abs().max()}')
+            print(f'Предел канала B - {self.picoscope.POWER_RANGE[self.limitB]}, при максимуме амплитуды - {self.data['ch_B'].abs().max()}')
 
             # Финальный расчет
             runParameters = [self.data, self.freq, 1, configNumber, sampleParameters]
@@ -224,7 +234,7 @@ class EpsteinFrameUI(QMainWindow):
             if abs(self.Bmax - target_B) / target_B > 0.05:  # допуск 5%
                 self._message(f"Целевая индукция не достигнута. Получено {round(self.Bmax, 3)} Тл при цели {target_B} Тл")
             else:
-                self._message("Измерение успешно завершено")
+                self._message(f"Измерение успешно завершено.")
 
         except Exception as e:
             self._message(f"Ошибка при измерениях: {str(e)}")
