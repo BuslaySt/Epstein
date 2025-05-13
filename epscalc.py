@@ -61,8 +61,14 @@ def run (runParameters):
     
     Bmax = max(avgInt)
     Imax = max(avgCurrent)
+    Imin = min(avgCurrent)
     Vmax = max(avgVoltage)
-
+    Vmin = min(avgVoltage)
+    
+    if abs(Vmax + Vmin) > 0.1*Vmax or abs(Imax + Imin) > 0.1*Imax:
+        line = '-'*25
+        print(line, "Выявлен перекос амплитуд!", line, sep='\n')
+        
     powerLosses = 0
     if key == 1:
         mass = 4*N*x*y*l*ro
