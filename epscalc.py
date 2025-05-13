@@ -68,14 +68,21 @@ def run (runParameters):
     if abs(Vmax + Vmin) > 0.1*Vmax or abs(Imax + Imin) > 0.1*Imax:
         line = '-'*25
         print(line, "Выявлен перекос амплитуд!", line, sep='\n')
-        
+        print(Imax)
+        print(Imin)
+        print(Vmax)
+        print(Vmin)
+
+    Iabsmax = max(Imax, -Imin)
+    Vabsmax = max(Vmax, -Vmin)
+
     powerLosses = 0
     if key == 1:
         mass = 4*N*x*y*l*ro
         ic(mass)
         powerLosses = epscalc.powerloss_calculation(avgCurrent, avgVoltage, currentCoef)*ratio/mass
 
-    return Bmax, avgH_field, avgInt, powerLosses, Imax, Vmax
+    return Bmax, avgH_field, avgInt, powerLosses, Iabsmax, Vabsmax
 
 
 #функция определения индексов начала и конца периодов
