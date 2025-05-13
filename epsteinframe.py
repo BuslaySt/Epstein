@@ -15,8 +15,8 @@ class EpsteinFrameUI(QMainWindow):
     NUMBER_OF_SAMPLES = 25*100000 # Базовое число сэмплов в настройках, x10 для измерения
     STARTAMP = 200000  # 200000 начальная амплитуда в мкВ
     AMPSTEP = 200000  # Стартовый шаг изменения амплитуды генератора в мкВ
-    Ch_A_START = 2      # 50mV предел канала А для начала
-    Ch_B_START = 4      # 200mV для канала B
+    Ch_A_START = 4      # 50mV предел канала А для начала
+    Ch_B_START = 5      # 200mV для канала B
                         # 0  == PS3000A_10MV:  ±10 mV - нет
                         # 1  == PS3000A_20MV:  ±20 mV - нет
                         # 2  == PS3000A_50MV:  ±50 mV
@@ -70,13 +70,6 @@ class EpsteinFrameUI(QMainWindow):
         ''' Вывод сообщений в консоль и статусбар '''
         print(message)
         self.statusBar.showMessage(message)
-
-    def _remove_outliers(self, series, threshold=3):
-        ''' Удаление выбросов по Z-параметру '''
-        median = series.median()
-        mad = (series - median).abs().median()
-        modified_z_score = 0.6745 * (series - median) / mad
-        return series[modified_z_score < threshold]
 
     def _get_limits(self, max) -> int:
         ''' Выбор подходящего предела измерений по максимальной амплитуде сигнала '''
@@ -177,6 +170,7 @@ class EpsteinFrameUI(QMainWindow):
                     
                 attempts += 1
 
+            print(f'Число сэмплов в - {nWaves}')
             # Тестовое измерение на большом количестве периодов и увеличенном пределе измерения
             self._message("Выполняем тестовое измерение...")
             self.limitA = max(self.limitA + 1, 10)
@@ -187,24 +181,15 @@ class EpsteinFrameUI(QMainWindow):
             samples = int(nWaves * self.NUMBER_OF_SAMPLES / self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
 
-            # Убираем выбросы
-            self.data['ch_A'] = self._remove_outliers(self.data['ch_A'])
-            self.data['ch_B'] = self._remove_outliers(self.data['ch_B'])
-
-            # Очистка данных каналов от выбросов
-            # threshold = 3  # Порог для определения выбросов
-            # z_scores = np.abs(stats.zscore(self.data['ch_A']))
-            # self.data.loc[z_scores > threshold, 'ch_A'] = np.nan
-            # z_scores = np.abs(stats.zscore(self.data['ch_B']))
-            # self.data.loc[z_scores > threshold, 'B'] = np.nan
-
-            print(f'Наличине выбросов A - {self.data.ch_A.isnull().sum()}')
-            print(f'Наличине выбросов B - {self.data.ch_B.isnull().sum()}')
-            self.data = self.data.interpolate()
+            # Усреднение каналов тока (ch_A) и напряжения (ch_B) и поиск максимумов для определения границ каналов
+            runParameters = [self.data, self.freq, 0, configNumber, sampleParameters]
+            result = epscalc.run(runParameters)
+            Imax = result[4]
+            Vmax = result[5]
 
             # Выбираем пределы каналов
-            self.limitA = self._get_limits(self.data['ch_A'].abs().max())
-            self.limitB = self._get_limits(self.data['ch_B'].abs().max())
+            self.limitA = self._get_limits(Imax)
+            self.limitB = self._get_limits(Bmax)
                 
             # Финальное измерение на большом количестве периодов
             self._message("Выполняем основное измерение...")
@@ -214,12 +199,16 @@ class EpsteinFrameUI(QMainWindow):
             samples = int(nWaves * self.NUMBER_OF_SAMPLES / self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
             
-            self.data['ch_A'] = self._remove_outliers(self.data['ch_A'])
-            self.data['ch_B'] = self._remove_outliers(self.data['ch_B'])
+            # Ищем выбросы по границам каналов
+            self.data.ch_A.loc[self.data.ch_A >= self.picoscope.POWER_RANGE[self.limitA]] = np.nan
+            self.data.ch_A.loc[self.data.ch_A <= -self.picoscope.POWER_RANGE[self.limitA]] = np.nan
+            self.data.ch_B.loc[self.data.ch_B >= self.picoscope.POWER_RANGE[self.limitB]] = np.nan
+            self.data.ch_B.loc[self.data.ch_B <= -self.picoscope.POWER_RANGE[self.limitB]] = np.nan
+
             print(f'Наличине выбросов A - {self.data.ch_A.isnull().sum()}')
             print(f'Наличине выбросов B - {self.data.ch_B.isnull().sum()}')
-            print(f'Предел канала A - {self.picoscope.POWER_RANGE[self.limitA]}, при максимуме амплитуды - {self.data['ch_A'].abs().max()}')
-            print(f'Предел канала B - {self.picoscope.POWER_RANGE[self.limitB]}, при максимуме амплитуды - {self.data['ch_B'].abs().max()}')
+            print(f'Предел канала A - {self.picoscope.POWER_RANGE[self.limitA]}, при максимуме амплитуды - {self.data.ch_A.abs().max()}')
+            print(f'Предел канала B - {self.picoscope.POWER_RANGE[self.limitB]}, при максимуме амплитуды - {self.data.ch_B.abs().max()}')
             self.data = self.data.interpolate()
 
             # Финальный расчет
