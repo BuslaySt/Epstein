@@ -209,6 +209,7 @@ class EpsteinFrameUI(QMainWindow):
             print(f'Наличине выбросов B - {self.data.ch_B.isnull().sum()}')
             print(f'Предел канала A - {self.picoscope.POWER_RANGE[self.limitA]}, при максимуме амплитуды - {self.data['ch_A'].abs().max()}')
             print(f'Предел канала B - {self.picoscope.POWER_RANGE[self.limitB]}, при максимуме амплитуды - {self.data['ch_B'].abs().max()}')
+            self.data = self.data.interpolate()
 
             # Финальный расчет
             runParameters = [self.data, self.freq, 1, configNumber, sampleParameters]
