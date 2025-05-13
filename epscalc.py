@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from icecream import ic
 import epscalc
 
-#v1.1
+#v1.3
 
 #ic.disable()
 
@@ -25,7 +25,7 @@ def run (runParameters):
     coilCoef = 4*measuringCoilCount # 4 измерительных катушки в рамке 
     x, y, N, ro = test_parameters
 
-    currentCoef = 0.99 #
+    currentCoef = 0.99 # коэффициент датчика тока
     ersted2Am = 9.8*79.57 #пересчет из Эрстед в А/м, 9.8 - множитель для конкретного набора катушек
     match configNumber:
         case 1: #150:50
@@ -52,19 +52,30 @@ def run (runParameters):
     ic(period_number)
     startIndices, finishIndices = epscalc.get_periods(df, period_number, period)
     ic(len(startIndices))
-    integratedValues, currentValues = epscalc.voltage_integration(df, startIndices, finishIndices, dx, coefSet)
+    integratedValues, H_fieldValues, currentValues, voltageValues = epscalc.voltage_integration(df, startIndices, finishIndices, dx, coefSet)
     ic(len(integratedValues))
     avgInt = epscalc.array_averaging(integratedValues)
+    avgH_field = epscalc.array_averaging(H_fieldValues)
     avgCurrent = epscalc.array_averaging(currentValues)
-    Bmax = max(avgInt)
+    avgVoltage = epscalc.array_averaging(voltageValues)
     
+    Bmax = max(avgInt)
+    Imax = max(avgCurrent)
+    Imin = min(avgCurrent)
+    Vmax = max(avgVoltage)
+    Vmin = min(avgVoltage)
+    
+    if abs(Vmax + Vmin) > 0.1*Vmax or abs(Imax + Imin) > 0.1*Imax:
+        line = '-'*25
+        print(line, "Выявлен перекос амплитуд!", line, sep='\n')
+        
     powerLosses = 0
     if key == 1:
         mass = 4*N*x*y*l*ro
         ic(mass)
-        powerLosses = epscalc.powerloss_calculation(df, startIndices, finishIndices, currentCoef)*ratio/mass
+        powerLosses = epscalc.powerloss_calculation(avgCurrent, avgVoltage, currentCoef)*ratio/mass
 
-    return Bmax, avgCurrent, avgInt, powerLosses
+    return Bmax, avgH_field, avgInt, powerLosses, Imax, Vmax
 
 
 #функция определения индексов начала и конца периодов
@@ -90,20 +101,13 @@ def get_periods (df, period_number, period):
     return (startIndices, finishIndices)
 
 #функция измерения потерь
-def powerloss_calculation (df, startIndices, finishIndices, currentCoef):
+def powerloss_calculation (avgCurrent, avgVoltage, currentCoef):
     current = []
     voltage = []
-    for start, finish in zip(startIndices, finishIndices):
-        df_period = (df[start:finish].reset_index(drop = True))
-        current.append(df_period['ch_A'].values)
-        voltage.append(df_period['ch_B'].values)
-    
-    avgCurrent = epscalc.array_averaging(current)
-    avgVoltage = epscalc.array_averaging(voltage)
-    
+        
     current = np.array(avgCurrent)
     voltage = np.array(avgVoltage)
-    avgLosses = np.mean(current*voltage*currentCoef/10**6)
+    avgLosses = np.mean(current*voltage*currentCoef)
 
     return (avgLosses)    
         
@@ -115,13 +119,17 @@ def voltage_integration(df, startIndices, finishIndices, dx, coefSet):
     #coefSet[2] - voltage to B
     allInt = []
     allCurrent = []
+    allH_field = []
+    allVoltage = []
+    
     for start, finish in zip(startIndices, finishIndices):
-        
         df_period = (df[start:finish].reset_index(drop = True))
         voltage = df_period['ch_B'].values/1000 #приведение к В
+        current = df_period['ch_A'].values/1000 #приведение к A
         n = len(voltage) - 1
-        allCurrent.append(df_period['ch_A'].values*(coefSet[0]*coefSet[1]/1000))
-
+        allH_field.append(current*coefSet[0]*coefSet[1])
+        allCurrent.append(current)
+        allVoltage.append(voltage)
         intVal = []
         startValue = 0
     
@@ -137,7 +145,7 @@ def voltage_integration(df, startIndices, finishIndices, dx, coefSet):
         finInt.insert(0, -zeroValue/(coefSet[2]*coefSet[3]))
         allInt.append(finInt)
 
-    return (allInt, allCurrent)
+    return (allInt, allH_field, allCurrent, allVoltage)
 
 #функция интегрирования методом трапеции
 def trapezoidal_integration (n, y, dx):
