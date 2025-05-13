@@ -11,7 +11,7 @@ from pico3204D import Picoscope3204D
 class EpsteinFrameUI(QMainWindow):
     ''' Константы '''
     TIMEBASE = 127         # 1252 - 10 μs, 127 - 1 μs
-    MAX_ATTEMPTS = 50     # Число попыток добраться до целевого значения
+    MAX_ATTEMPTS = 20     # Число попыток добраться до целевого значения
     NUMBER_OF_SAMPLES = 25*100000 # Базовое число сэмплов в настройках, x10 для измерения
     STARTAMP = 200000  # 200000 начальная амплитуда в мкВ
     AMPSTEP = 200000  # Стартовый шаг изменения амплитуды генератора в мкВ
@@ -89,8 +89,7 @@ class EpsteinFrameUI(QMainWindow):
             return 8
         if max < 10000:
             return 9
-        if max < 20000:
-            return 10
+        return 10
 
     def start(self):
         ''' Начать измерения по кнопке '''
@@ -116,7 +115,7 @@ class EpsteinFrameUI(QMainWindow):
         # Начальные параметры для метода маятника
         amp_step = self.AMPSTEP  # начальный шаг амплитуды
         direction = 1      # направление изменения (1 - увеличение, -1 - уменьшение)
-        attempts = 0
+        attempts = 1
         nWaves = 1
         max_attempts = self.MAX_ATTEMPTS  # максимальное количество итераций
 
@@ -133,12 +132,12 @@ class EpsteinFrameUI(QMainWindow):
                 # Проверка пределов измерения
                 limits_check = self.picoscope.check_limits(self.data)
                 if limits_check == 1 and self.limitA < 10:
-                    self._message("Увеличиваем предел измерения канала A")
                     self.limitA += 1
+                    self._message(f"Увеличиваем предел измерения канала A - {self.limitA}")
                     continue
                 elif limits_check == 2 and self.limitB < 10:
-                    self._message("Увеличиваем предел измерения канала B")
                     self.limitB += 1
+                    self._message(f"Увеличиваем предел измерения канала B - {self.limitB}")
                     continue
                 elif limits_check != 0:
                     self._message("Достигнут предел измерения")
@@ -150,8 +149,14 @@ class EpsteinFrameUI(QMainWindow):
                 current_B = result[0]
                 self._message(f"Попытка {attempts}: Амплитуда={self.amp}, Шаг={amp_step}, Bmax={round(current_B, 3)} Тл")
 
-                if abs(current_B - target_B) / target_B < 0.02:
+                if abs(current_B - target_B) / target_B < 0.01:
+                    # Стоп, если полученная амплитуда в пределах процента от искомой
                     break
+
+                if abs(current_B - target_B) / target_B < 0.07:
+                    # Если полученная амплитуда рядом с искомой - увеличиваем точность
+                    nWaves = min(nWaves + 1, 5)
+                    print(f'Число сэмплов точности - {nWaves}')
 
                 # Логика маятника
                 if (current_B < target_B and direction > 0) or (current_B > target_B and direction < 0):
@@ -160,21 +165,22 @@ class EpsteinFrameUI(QMainWindow):
                     if (direction * self.amp) >=  4000000:
                         self.amp = direction * 4000000
                         self._message("Достигнут максимум генератора (4V)")
+                        # TODO остановиться, если возвращаемся сюда второй раз
                 else:
                     # Меняем направление и уменьшаем шаг
                     direction *= -1
                     self._message('Разворот маятника')
-                    nWaves += 1
+                    nWaves = min(nWaves + 1, 5)
+                    print(f'Число сэмплов точности - {nWaves}')
                     amp_step = max(amp_step // 2, 1000)  # Уменьшаем шаг, но не меньше минимального
                     self.amp += direction * amp_step
                     
                 attempts += 1
 
-            print(f'Число сэмплов в - {nWaves}')
             # Тестовое измерение на большом количестве периодов и увеличенном пределе измерения
             self._message("Выполняем тестовое измерение...")
-            self.limitA = max(self.limitA + 1, 10)
-            self.limitB = max(self.limitB + 1, 10)
+            self.limitA = min(self.limitA + 1, 10)
+            self.limitB = min(self.limitB + 1, 10)
             self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
             nWaves = 5 # Число сэмплов увеличиваем в 5 раз от настроечного
             self.picoscope.setup_generator(self.freq, amplitude=self.amp)
@@ -184,12 +190,16 @@ class EpsteinFrameUI(QMainWindow):
             # Усреднение каналов тока (ch_A) и напряжения (ch_B) и поиск максимумов для определения границ каналов
             runParameters = [self.data, self.freq, 0, configNumber, sampleParameters]
             result = epscalc.run(runParameters)
-            Imax = result[4]
-            Vmax = result[5]
+            Imax = round(result[4]*1e3, 2)
+            print(f'Максимум тока - {Imax} мВ')
+            Vmax = round(result[5]*1e3, 2)
+            print(f'Максимум напряжения - {Vmax} мВ')
 
             # Выбираем пределы каналов
             self.limitA = self._get_limits(Imax)
-            self.limitB = self._get_limits(Bmax)
+            print(f'Предел по каналу A - {self.limitA}')
+            self.limitB = self._get_limits(Vmax)
+            print(f'Предел по каналу B - {self.limitB}')
                 
             # Финальное измерение на большом количестве периодов
             self._message("Выполняем основное измерение...")
@@ -200,16 +210,16 @@ class EpsteinFrameUI(QMainWindow):
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
             
             # Ищем выбросы по границам каналов
-            self.data.ch_A.loc[self.data.ch_A >= self.picoscope.POWER_RANGE[self.limitA]] = np.nan
-            self.data.ch_A.loc[self.data.ch_A <= -self.picoscope.POWER_RANGE[self.limitA]] = np.nan
-            self.data.ch_B.loc[self.data.ch_B >= self.picoscope.POWER_RANGE[self.limitB]] = np.nan
-            self.data.ch_B.loc[self.data.ch_B <= -self.picoscope.POWER_RANGE[self.limitB]] = np.nan
+            # self.data.loc[self.data.ch_A >= self.picoscope.POWER_RANGE[self.limitA]] = np.nan
+            # self.data.loc[self.data.ch_A <= -self.picoscope.POWER_RANGE[self.limitA]] = np.nan
+            # self.data.loc[self.data.ch_B >= self.picoscope.POWER_RANGE[self.limitB]] = np.nan
+            # self.data.loc[self.data.ch_B <= -self.picoscope.POWER_RANGE[self.limitB]] = np.nan
 
-            print(f'Наличине выбросов A - {self.data.ch_A.isnull().sum()}')
-            print(f'Наличине выбросов B - {self.data.ch_B.isnull().sum()}')
+            # print(f'Наличине выбросов A - {self.data.ch_A.isnull().sum()}')
+            # print(f'Наличине выбросов B - {self.data.ch_B.isnull().sum()}')
             print(f'Предел канала A - {self.picoscope.POWER_RANGE[self.limitA]}, при максимуме амплитуды - {self.data.ch_A.abs().max()}')
             print(f'Предел канала B - {self.picoscope.POWER_RANGE[self.limitB]}, при максимуме амплитуды - {self.data.ch_B.abs().max()}')
-            self.data = self.data.interpolate()
+            # self.data = self.data.interpolate()
 
             # Финальный расчет
             runParameters = [self.data, self.freq, 1, configNumber, sampleParameters]
