@@ -119,8 +119,10 @@ def voltage_integration(df, startIndices, finishIndices, dx, coefSet):
     #coefSet[2] - voltage to B
     allInt = []
     allCurrent = []
+    allH_field = []
+    allVoltage = []
+    
     for start, finish in zip(startIndices, finishIndices):
-        
         df_period = (df[start:finish].reset_index(drop = True))
         voltage = df_period['ch_B'].values/1000 #приведение к В
         current = df_period['ch_A'].values/1000 #приведение к A
