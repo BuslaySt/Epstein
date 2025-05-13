@@ -11,7 +11,7 @@ from pico3204D import Picoscope3204D
 class EpsteinFrameUI(QMainWindow):
     ''' Константы '''
     TIMEBASE = 127         # 1252 - 10 μs, 127 - 1 μs
-    MAX_ATTEMPTS = 20     # Число попыток добраться до целевого значения
+    MAX_ATTEMPTS = 30     # Число попыток добраться до целевого значения
     NUMBER_OF_SAMPLES = 25*100000 # Базовое число сэмплов в настройках, x10 для измерения
     STARTAMP = 200000  # 200000 начальная амплитуда в мкВ
     AMPSTEP = 200000  # Стартовый шаг изменения амплитуды генератора в мкВ
@@ -153,7 +153,7 @@ class EpsteinFrameUI(QMainWindow):
                     # Стоп, если полученная амплитуда в пределах процента от искомой
                     break
 
-                if abs(current_B - target_B) / target_B < 0.07:
+                if abs(current_B - target_B) / target_B < 0.05:
                     # Если полученная амплитуда рядом с искомой - увеличиваем точность
                     nWaves = min(nWaves + 1, 5)
                     print(f'Число сэмплов точности - {nWaves}')
@@ -196,9 +196,9 @@ class EpsteinFrameUI(QMainWindow):
             print(f'Максимум напряжения - {Vmax} мВ')
 
             # Выбираем пределы каналов
-            self.limitA = self._get_limits(Imax)
+            self.limitA = self._get_limits(Imax*1.1)
             print(f'Предел по каналу A - {self.limitA}')
-            self.limitB = self._get_limits(Vmax)
+            self.limitB = self._get_limits(Vmax*1.1)
             print(f'Предел по каналу B - {self.limitB}')
                 
             # Финальное измерение на большом количестве периодов
@@ -210,16 +210,16 @@ class EpsteinFrameUI(QMainWindow):
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
             
             # Ищем выбросы по границам каналов
-            # self.data.loc[self.data.ch_A >= self.picoscope.POWER_RANGE[self.limitA]] = np.nan
-            # self.data.loc[self.data.ch_A <= -self.picoscope.POWER_RANGE[self.limitA]] = np.nan
-            # self.data.loc[self.data.ch_B >= self.picoscope.POWER_RANGE[self.limitB]] = np.nan
-            # self.data.loc[self.data.ch_B <= -self.picoscope.POWER_RANGE[self.limitB]] = np.nan
+            self.data.loc[self.data.ch_A == self.picoscope.POWER_RANGE[self.limitA], 'ch_A'] = np.nan
+            self.data.loc[self.data.ch_A == -self.picoscope.POWER_RANGE[self.limitA], 'ch_A'] = np.nan
+            self.data.loc[self.data.ch_B == self.picoscope.POWER_RANGE[self.limitB], 'ch_B'] = np.nan
+            self.data.loc[self.data.ch_B == -self.picoscope.POWER_RANGE[self.limitB], 'ch_B'] = np.nan
 
-            # print(f'Наличине выбросов A - {self.data.ch_A.isnull().sum()}')
-            # print(f'Наличине выбросов B - {self.data.ch_B.isnull().sum()}')
+            print(f'Наличие выбросов A - {self.data.ch_A.isnull().sum()}')
+            print(f'Наличие выбросов B - {self.data.ch_B.isnull().sum()}')
             print(f'Предел канала A - {self.picoscope.POWER_RANGE[self.limitA]}, при максимуме амплитуды - {self.data.ch_A.abs().max()}')
             print(f'Предел канала B - {self.picoscope.POWER_RANGE[self.limitB]}, при максимуме амплитуды - {self.data.ch_B.abs().max()}')
-            # self.data = self.data.interpolate()
+            self.data = self.data.interpolate()
 
             # Финальный расчет
             runParameters = [self.data, self.freq, 1, configNumber, sampleParameters]
