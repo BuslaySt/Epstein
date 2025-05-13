@@ -2,6 +2,5 @@
 /venv
 /__pycache__
 /bin
-*.csv
 /data
 /graph
