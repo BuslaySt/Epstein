@@ -2,6 +2,9 @@ import time, os, sys
 from PyQt5.QtWidgets import QMainWindow, QApplication
 from PyQt5.uic import loadUi
 import epscalc, traceback
+from scipy import stats
+import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from pico3204D import Picoscope3204D
 
@@ -187,6 +190,14 @@ class EpsteinFrameUI(QMainWindow):
             # Убираем выбросы
             self.data['ch_A'] = self._remove_outliers(self.data['ch_A'])
             self.data['ch_B'] = self._remove_outliers(self.data['ch_B'])
+
+            # Очистка данных каналов от выбросов
+            # threshold = 3  # Порог для определения выбросов
+            # z_scores = np.abs(stats.zscore(self.data['ch_A']))
+            # self.data.loc[z_scores > threshold, 'ch_A'] = np.nan
+            # z_scores = np.abs(stats.zscore(self.data['ch_B']))
+            # self.data.loc[z_scores > threshold, 'B'] = np.nan
+
             print(f'Наличине выбросов A - {self.data.ch_A.isnull().sum()}')
             print(f'Наличине выбросов B - {self.data.ch_B.isnull().sum()}')
             self.data = self.data.interpolate()
