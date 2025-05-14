@@ -2,7 +2,8 @@ import time, os, sys
 from PyQt5.QtWidgets import QMainWindow, QApplication
 from PyQt5.uic import loadUi
 import epscalc, traceback
-from scipy import stats
+# from scipy import stats
+from scipy.signal import medfilt
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -187,18 +188,23 @@ class EpsteinFrameUI(QMainWindow):
             samples = int(nWaves * self.NUMBER_OF_SAMPLES / self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
 
-            # Усреднение каналов тока (ch_A) и напряжения (ch_B) и поиск максимумов для определения границ каналов
-            runParameters = [self.data, self.freq, 0, configNumber, sampleParameters]
-            result = epscalc.run(runParameters)
-            Imax = round(result[4]*1e3, 2)
-            print(f'Максимум тока - {Imax} мВ')
-            Vmax = round(result[5]*1e3, 2)
-            print(f'Максимум напряжения - {Vmax} мВ')
+            # Усреднение каналов тока (ch_A) и напряжения (ch_B) медианой и скользящим средним, а после поиск максимумов для определения границ каналов
+            window_size_med = 49
+            self.data['ch_A_med'] = medfilt(self.data['ch_A'], kernel_size=window_size_med)
+            self.data['ch_B_med'] = medfilt(self.data['ch_B'], kernel_size=window_size_med)
+            window_size_roll = 99
+            self.data['ch_A'] = self.data['ch_A_med'].rolling(window=window_size_roll, center=True).mean()
+            self.data['ch_B'] = self.data['ch_B_med'].rolling(window=window_size_roll, center=True).mean()
+
+            self.data.fillna({'ch_A': self.data['ch_A_med'], 'ch_B': self.data['ch_B_med']}, inplace=True)
+            self.data.drop(['ch_A_med', 'ch_B_med'], axis=1, inplace=True)
 
             # Выбираем пределы каналов
-            self.limitA = self._get_limits(Imax)
+            ch_A_absmax = max(self.data['ch_A'].max(), abs(self.data['ch_A'].min()))
+            self.limitA = self._get_limits(ch_A_absmax)
             print(f'Предел по каналу A - {self.limitA}')
-            self.limitB = self._get_limits(Vmax)
+            ch_B_absmax = max(self.data['ch_B'].max(), abs(self.data['ch_B'].min()))
+            self.limitB = self._get_limits(ch_B_absmax)
             print(f'Предел по каналу B - {self.limitB}')
 
             # Финальное измерение на большом количестве периодов
