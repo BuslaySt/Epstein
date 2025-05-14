@@ -196,11 +196,11 @@ class EpsteinFrameUI(QMainWindow):
             print(f'Максимум напряжения - {Vmax} мВ')
 
             # Выбираем пределы каналов
-            self.limitA = self._get_limits(Imax*1.1)
+            self.limitA = self._get_limits(Imax)
             print(f'Предел по каналу A - {self.limitA}')
-            self.limitB = self._get_limits(Vmax*1.1)
+            self.limitB = self._get_limits(Vmax)
             print(f'Предел по каналу B - {self.limitB}')
-                
+
             # Финальное измерение на большом количестве периодов
             self._message("Выполняем основное измерение...")
             self.picoscope.initialize_ports(channelA_range=self.limitA, channelB_range=self.limitB)
