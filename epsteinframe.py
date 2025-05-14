@@ -188,7 +188,7 @@ class EpsteinFrameUI(QMainWindow):
             samples = int(nWaves * self.NUMBER_OF_SAMPLES / self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
 
-            # Усреднение каналов тока (ch_A) и напряжения (ch_B) медианой и скользящим средним, а после поиск максимумов для определения границ каналов
+            # Усреднение каналов тока (ch_A) и напряжения (ch_B) медианой и скользящим средним
             window_size_med = 49
             self.data['ch_A_med'] = medfilt(self.data['ch_A'], kernel_size=window_size_med)
             self.data['ch_B_med'] = medfilt(self.data['ch_B'], kernel_size=window_size_med)
@@ -199,13 +199,13 @@ class EpsteinFrameUI(QMainWindow):
             self.data.fillna({'ch_A': self.data['ch_A_med'], 'ch_B': self.data['ch_B_med']}, inplace=True)
             self.data.drop(['ch_A_med', 'ch_B_med'], axis=1, inplace=True)
 
-            # Выбираем пределы каналов
+            # Выбираем пределы каналов согласно максимумов
             ch_A_absmax = max(self.data['ch_A'].max(), abs(self.data['ch_A'].min()))
             self.limitA = self._get_limits(ch_A_absmax)
-            print(f'Предел по каналу A - {self.limitA}')
+            # print(f'Предел по каналу A - {self.limitA}')
             ch_B_absmax = max(self.data['ch_B'].max(), abs(self.data['ch_B'].min()))
             self.limitB = self._get_limits(ch_B_absmax)
-            print(f'Предел по каналу B - {self.limitB}')
+            # print(f'Предел по каналу B - {self.limitB}')
 
             # Финальное измерение на большом количестве периодов
             self._message("Выполняем основное измерение...")
@@ -215,17 +215,19 @@ class EpsteinFrameUI(QMainWindow):
             samples = int(nWaves * self.NUMBER_OF_SAMPLES / self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
             
-            # Ищем выбросы по границам каналов
-            self.data.loc[self.data.ch_A == self.picoscope.POWER_RANGE[self.limitA], 'ch_A'] = np.nan
-            self.data.loc[self.data.ch_A == -self.picoscope.POWER_RANGE[self.limitA], 'ch_A'] = np.nan
-            self.data.loc[self.data.ch_B == self.picoscope.POWER_RANGE[self.limitB], 'ch_B'] = np.nan
-            self.data.loc[self.data.ch_B == -self.picoscope.POWER_RANGE[self.limitB], 'ch_B'] = np.nan
+            # Усреднение каналов тока (ch_A) и напряжения (ch_B) медианой и скользящим средним
+            window_size_med = 49
+            self.data['ch_A_med'] = medfilt(self.data['ch_A'], kernel_size=window_size_med)
+            self.data['ch_B_med'] = medfilt(self.data['ch_B'], kernel_size=window_size_med)
+            window_size_roll = 99
+            self.data['ch_A'] = self.data['ch_A_med'].rolling(window=window_size_roll, center=True).mean()
+            self.data['ch_B'] = self.data['ch_B_med'].rolling(window=window_size_roll, center=True).mean()
 
-            print(f'Наличие выбросов A - {self.data.ch_A.isnull().sum()}')
-            print(f'Наличие выбросов B - {self.data.ch_B.isnull().sum()}')
+            self.data.fillna({'ch_A': self.data['ch_A_med'], 'ch_B': self.data['ch_B_med']}, inplace=True)
+            self.data.drop(['ch_A_med', 'ch_B_med'], axis=1, inplace=True)
+
             print(f'Предел канала A - {self.picoscope.POWER_RANGE[self.limitA]}, при максимуме амплитуды - {self.data.ch_A.abs().max()}')
             print(f'Предел канала B - {self.picoscope.POWER_RANGE[self.limitB]}, при максимуме амплитуды - {self.data.ch_B.abs().max()}')
-            self.data = self.data.interpolate()
 
             # Финальный расчет
             runParameters = [self.data, self.freq, 1, configNumber, sampleParameters]
