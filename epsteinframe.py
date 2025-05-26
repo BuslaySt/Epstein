@@ -249,6 +249,9 @@ class EpsteinFrameUI(QMainWindow):
             self.PowerLossList.append(round(self.powerLosses, 3))
             self.plotData()
 
+            # Выключаем генератор
+            self.picoscope.stop_generator()
+
             # Проверка достижения целевой индукции
             if abs(self.Bmax - target_B) / target_B > 0.05:  # допуск 5%
                 self._message(f"Целевая индукция не достигнута. Получено {round(self.Bmax, 3)} Тл при цели {target_B} Тл")
