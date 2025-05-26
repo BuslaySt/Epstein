@@ -177,11 +177,26 @@ class Picoscope3204D:
         """
         Stops the built-in signal generator and the oscilloscope.
         """
-        # Stops the scope
-        # Handle = chandle
-        self.status["stop"] = ps.ps3000aStop(self.chandle)
-        assert_pico_ok(self.status["stop"])
-        print(f"Oscilloscope stopped.")
+        self.status["SetSigGenBuiltIn"] = ps.ps3000aSetSigGenBuiltIn(
+            self.chandle,       # handle = chandle
+            0,                  # offsetVoltage = 0 V
+            0,                  # pkToPk = +-2000000 μV ; max +-2 V
+            0,                  # waveType = ctypes.c_int16(0) = PS3000A_SINE
+            1,                  # startFrequency, Hz, the frequency that the signal generator will initially produce
+            1,                  # stopFrequency, Hz, the frequency at which the sweep reverses direction or returns to the initial frequency
+            0,                  # increment = 0, the amount of frequency increase or decrease in sweep mode
+            0,                  # dwellTime = 1, the time for which the sweep stays at each frequency, in seconds
+            0,                  # sweepType = ctypes.c_int16(1) = PS3000A_UP
+            0,                  # operation = 0 = PS3000A_ES_OFF, normal signal generator operation specified by wavetype.
+            0,                  # shots = 0: sweep the frequency as specified by sweeps
+            0,                  # sweeps = 0: produce number of cycles specified by shots
+            0,                  # triggerType = ctypes.c_int16(0) = PS3000A_SIGGEN_RISING
+            0,                  # triggerSource = ctypes.c_int16(0) = P3000A_SIGGEN_NONE
+            0                   # extInThreshold = 1
+        )
+        assert_pico_ok(self.status["SetSigGenBuiltIn"])
+
+        print(f"Generator set to minimum 1 Hz and 1 μV.")
 
     def read_data(self, max_samples=DEFAULT_MAX_SAMPLES, sample_rate=DEFAULT_SAMPLE_RATE) -> pd.DataFrame:
         """
@@ -390,17 +405,19 @@ if __name__ == "__main__":
         picoscope = Picoscope3204D()
         picoscope.initialize_ports(channelA_range=5, channelB_range=7)
         # picoscope.setup_trigger()
-        # input('Подключите усилитель')
-        # picoscope.setup_generator(frequency=50, amplitude=1000000)  # 30000 samples at 50 Hz, 1 V, 10 mks
-        # data = picoscope.read_data()
+        input('Подключите усилитель')
+        picoscope.setup_generator(frequency=50, amplitude=1000000)  # 30000 samples at 50 Hz, 1 V, 10 mks
+        print(picoscope.status)
+        data = picoscope.read_data()
+        # print(data.info())
         # print(picoscope.check_limits(data))
         # match picoscope.check_limits(data):
         #     case 0: print(data.head(20))
         #     case 1: print("Надо увеличить лимиты канала A")
         #     case 2: print("Надо увеличить лимиты канала B")
         # picoscope.save_data(data)
-        picoscope.setup_generator(frequency=1, amplitude=1)
         picoscope.stop_generator()
+        print(picoscope.status)
 
     except Exception as e:
         print(f"An error occurred: {e}")
