@@ -172,7 +172,17 @@ class Picoscope3204D:
         assert_pico_ok(self.status["SetSigGenBuiltIn"])
 
         print(f"Generator set up with {frequency} Hz and {amplitude/1000} mV.")
-    
+
+    def stop_generator(self) -> None:
+        """
+        Stops the built-in signal generator and the oscilloscope.
+        """
+        # Stops the scope
+        # Handle = chandle
+        self.status["stop"] = ps.ps3000aStop(self.chandle)
+        assert_pico_ok(self.status["stop"])
+        print(f"Oscilloscope stopped.")
+
     def read_data(self, max_samples=DEFAULT_MAX_SAMPLES, sample_rate=DEFAULT_SAMPLE_RATE) -> pd.DataFrame:
         """
         Read data samples from the Pico device.
@@ -379,16 +389,19 @@ if __name__ == "__main__":
     try:
         picoscope = Picoscope3204D()
         picoscope.initialize_ports(channelA_range=5, channelB_range=7)
-        picoscope.setup_trigger()
-        input('Подключите усилитель')
-        picoscope.setup_generator(frequency=50, amplitude=1000000)  # 30000 samples at 50 Hz, 1 V, 10 mks
-        data = picoscope.read_data()
-        print(picoscope.check_limits(data))
-        match picoscope.check_limits(data):
-            case 0: print(data.head(20))
-            case 1: print("Надо увеличить лимиты канала A")
-            case 2: print("Надо увеличить лимиты канала B")
-        # picoscope.save_data(data)        
+        # picoscope.setup_trigger()
+        # input('Подключите усилитель')
+        # picoscope.setup_generator(frequency=50, amplitude=1000000)  # 30000 samples at 50 Hz, 1 V, 10 mks
+        # data = picoscope.read_data()
+        # print(picoscope.check_limits(data))
+        # match picoscope.check_limits(data):
+        #     case 0: print(data.head(20))
+        #     case 1: print("Надо увеличить лимиты канала A")
+        #     case 2: print("Надо увеличить лимиты канала B")
+        # picoscope.save_data(data)
+        picoscope.setup_generator(frequency=1, amplitude=1)
+        picoscope.stop_generator()
+
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
