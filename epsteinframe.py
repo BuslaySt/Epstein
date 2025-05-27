@@ -118,6 +118,7 @@ class EpsteinFrameUI(QMainWindow):
         direction = 1      # направление изменения (1 - увеличение, -1 - уменьшение)
         attempts = 1
         nWaves = 1
+        secondMax = False
         max_attempts = self.MAX_ATTEMPTS  # максимальное количество итераций
 
         try:
@@ -166,7 +167,11 @@ class EpsteinFrameUI(QMainWindow):
                     if (direction * self.amp) >=  4000000:
                         self.amp = direction * 4000000
                         self._message("Достигнут максимум генератора (4V)")
-                        # TODO остановиться, если возвращаемся сюда второй раз
+                        # если возвращаемся сюда второй раз, то больше не надо
+                        if secondMax:
+                            break
+                        else:
+                            secondMax = True
                 else:
                     # Меняем направление и уменьшаем шаг
                     direction *= -1
