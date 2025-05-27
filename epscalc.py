@@ -65,13 +65,13 @@ def run (runParameters):
     Vmax = max(avgVoltage)
     Vmin = min(avgVoltage)
     
-    if abs(Vmax + Vmin) > 0.1*Vmax or abs(Imax + Imin) > 0.1*Imax:
-        line = '-'*25
-        print(line, "Выявлен перекос амплитуд!", line, sep='\n')
-        print(Imax)
-        print(Imin)
-        print(Vmax)
-        print(Vmin)
+    # if abs(Vmax + Vmin) > 0.1*Vmax or abs(Imax + Imin) > 0.1*Imax:
+    #     line = '-'*25
+    #     print(line, "Выявлен перекос амплитуд!", line, sep='\n')
+    #     print(Imax)
+    #     print(Imin)
+    #     print(Vmax)
+    #     print(Vmin)
 
     Iabsmax = max(Imax, -Imin)
     Vabsmax = max(Vmax, -Vmin)
