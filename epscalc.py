@@ -87,7 +87,7 @@ def run (runParameters):
         ic(mass)
         powerLosses = epscalc.powerloss_calculation(corrCurrent, avgVoltage, currentCoef)*ratio/mass
 
-    return Bmax, avgH_field, avgInt, powerLosses, Iabsmax, Vabsmax
+    return Bmax, corrH_field, avgInt, powerLosses, Iabsmax, Vabsmax
 
 
 #функция определения индексов начала и конца периодов
