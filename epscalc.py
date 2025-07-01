@@ -58,10 +58,15 @@ def run (runParameters):
     avgH_field = epscalc.array_averaging(H_fieldValues)
     avgCurrent = epscalc.array_averaging(currentValues)
     avgVoltage = epscalc.array_averaging(voltageValues)
+
+    currentOffset = np.mean(avgCurrent)
+    corrCurrent = np.array(avgCurrent) - currentOffset
+    H_fieldOffset = np.mean(avgH_field)
+    corrH_field = np.array(avgH_field) - H_fieldOffset
     
     Bmax = max(avgInt)
-    Imax = max(avgCurrent)
-    Imin = min(avgCurrent)
+    Imax = max(corrCurrent)
+    Imin = min(corrCurrent)
     Vmax = max(avgVoltage)
     Vmin = min(avgVoltage)
     
@@ -80,7 +85,7 @@ def run (runParameters):
     if key == 1:
         mass = 4*N*x*y*l*ro
         ic(mass)
-        powerLosses = epscalc.powerloss_calculation(avgCurrent, avgVoltage, currentCoef)*ratio/mass
+        powerLosses = epscalc.powerloss_calculation(corrCurrent, avgVoltage, currentCoef)*ratio/mass
 
     return Bmax, avgH_field, avgInt, powerLosses, Iabsmax, Vabsmax
 
