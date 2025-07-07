@@ -248,7 +248,7 @@ class EpsteinFrameUI(QMainWindow):
             # Вывод результатов
             self.lbl_Bmax.setText(f'Индукция - {round(self.Bmax, 3)} Тл')
             self.lbl_powerLosses.setText(f'Потери - {round(self.powerLosses, 3)} Вт/кг')
-            self._message(f'Финальный результат: Индукция - {round(self.Bmax, 3)} Тл; Потери - {round(self.powerLosses, 3)} Вт/кг')
+            self._message(f'Финальный результат: Индукция - {round(self.Bmax, 6)} Тл; Потери - {round(self.powerLosses, 6)} Вт/кг')
 
             # Сохранение данных гистерезиса
             self.listOfH.append(self.H)
@@ -259,9 +259,9 @@ class EpsteinFrameUI(QMainWindow):
 
             # Проверка достижения целевой индукции
             if abs(self.Bmax - target_B) / target_B > 0.05:  # допуск 5%
-                self._message(f"Целевая индукция не достигнута. Получено {round(self.Bmax, 3)} Тл при цели {target_B} Тл")
+                self._message(f"Целевая индукция не достигнута. Получено {round(self.Bmax, 6)} Тл при цели {target_B} Тл")
             else:
-                self._message(f"Измерение успешно завершено: Индукция - {round(self.Bmax, 3)} Тл; Потери - {round(self.powerLosses, 3)} Вт/кг'")
+                self._message(f"Измерение успешно завершено: Индукция - {round(self.Bmax, 6)} Тл; Потери - {round(self.powerLosses, 6)} Вт/кг'")
 
         except Exception as e:
             self._message(f"Ошибка при измерениях: {str(e)}")
