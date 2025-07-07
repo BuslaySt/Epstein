@@ -246,15 +246,15 @@ class EpsteinFrameUI(QMainWindow):
             self.powerLosses = result[3]
             
             # Вывод результатов
-            self.lbl_Bmax.setText(f'Индукция - {round(self.Bmax, 3)} Тл')
-            self.lbl_powerLosses.setText(f'Потери - {round(self.powerLosses, 3)} Вт/кг')
+            self.lbl_Bmax.setText(f'Индукция - {round(self.Bmax, 6)} Тл')
+            self.lbl_powerLosses.setText(f'Потери - {round(self.powerLosses, 6)} Вт/кг')
             self._message(f'Финальный результат: Индукция - {round(self.Bmax, 6)} Тл; Потери - {round(self.powerLosses, 6)} Вт/кг')
 
             # Сохранение данных гистерезиса
             self.listOfH.append(self.H)
             self.listOfB.append(self.B)
-            self.BmaxList.append(round(self.Bmax, 3))
-            self.PowerLossList.append(round(self.powerLosses, 3))
+            self.BmaxList.append(round(self.Bmax, 6))
+            self.PowerLossList.append(round(self.powerLosses, 6))
             self.plotData()
 
             # Проверка достижения целевой индукции
