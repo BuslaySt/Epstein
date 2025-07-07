@@ -149,7 +149,7 @@ class EpsteinFrameUI(QMainWindow):
                 runParameters = [self.data, self.freq, 0, configNumber, sampleParameters]
                 result = epscalc.run(runParameters)
                 current_B = result[0]
-                self._message(f"Попытка {attempts}: Амплитуда={self.amp}, Шаг={amp_step}, Bmax={round(current_B, 3)} Тл")
+                self._message(f"Попытка {attempts}: Амплитуда={self.amp}, Шаг={amp_step}, Bmax={round(current_B, 6)} Тл")
 
                 if abs(current_B - target_B) / target_B < 0.01:
                     # Стоп, если полученная амплитуда в пределах процента от искомой
@@ -220,6 +220,9 @@ class EpsteinFrameUI(QMainWindow):
             samples = int(nWaves * self.NUMBER_OF_SAMPLES / self.freq)
             self.data = self.picoscope.read_data(max_samples=samples, sample_rate=self.TIMEBASE)
             
+            # Выключаем генератор
+            self.picoscope.stop_generator()
+
             # Усреднение каналов тока (ch_A) и напряжения (ch_B) медианой и скользящим средним
             window_size_med = 49
             self.data['ch_A_med'] = medfilt(self.data['ch_A'], kernel_size=window_size_med)
@@ -254,14 +257,11 @@ class EpsteinFrameUI(QMainWindow):
             self.PowerLossList.append(round(self.powerLosses, 3))
             self.plotData()
 
-            # Выключаем генератор
-            self.picoscope.stop_generator()
-
             # Проверка достижения целевой индукции
             if abs(self.Bmax - target_B) / target_B > 0.05:  # допуск 5%
                 self._message(f"Целевая индукция не достигнута. Получено {round(self.Bmax, 3)} Тл при цели {target_B} Тл")
             else:
-                self._message(f"Измерение успешно завершено.")
+                self._message(f"Измерение успешно завершено: Индукция - {round(self.Bmax, 3)} Тл; Потери - {round(self.powerLosses, 3)} Вт/кг'")
 
         except Exception as e:
             self._message(f"Ошибка при измерениях: {str(e)}")
