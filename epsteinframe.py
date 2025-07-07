@@ -69,7 +69,7 @@ class EpsteinFrameUI(QMainWindow):
 
     def _message(self, message: str):
         ''' Вывод сообщений в консоль и статусбар '''
-        print(message)
+        print(f'{message}\n')
         self.statusBar.showMessage(message)
 
     def _get_limits(self, max) -> int:
@@ -222,6 +222,7 @@ class EpsteinFrameUI(QMainWindow):
             
             # Выключаем генератор
             self.picoscope.stop_generator()
+            self._message("Основное измерение выполнено, генератор остановлен")
 
             # Усреднение каналов тока (ch_A) и напряжения (ch_B) медианой и скользящим средним
             window_size_med = 49
