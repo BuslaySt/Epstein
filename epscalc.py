@@ -3,8 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from icecream import ic
 import epscalc
+import service
 
-#v1.3
+#v1.4
 
 #ic.disable()
 
@@ -54,10 +55,10 @@ def run (runParameters):
     ic(len(startIndices))
     integratedValues, H_fieldValues, currentValues, voltageValues = epscalc.voltage_integration(df, startIndices, finishIndices, dx, coefSet)
     ic(len(integratedValues))
-    avgInt = epscalc.array_averaging(integratedValues)
-    avgH_field = epscalc.array_averaging(H_fieldValues)
-    avgCurrent = epscalc.array_averaging(currentValues)
-    avgVoltage = epscalc.array_averaging(voltageValues)
+    avgInt = service.array_averaging(integratedValues)
+    avgH_field = service.array_averaging(H_fieldValues)
+    avgCurrent = service.array_averaging(currentValues)
+    avgVoltage = service.array_averaging(voltageValues)
 
     currentOffset = np.mean(avgCurrent)
     corrCurrent = np.array(avgCurrent) - currentOffset
@@ -147,12 +148,11 @@ def voltage_integration(df, startIndices, finishIndices, dx, coefSet):
     
         intVal = epscalc.trapezoidal_integration (n, voltage, dx)
         
-        corrInt = epscalc.minus_integration(intVal)
+        corrInt = service.minus_integration(intVal)
         zeroValue = sum(corrInt)/len(corrInt)
             
         finInt = []
-        for value in corrInt:
-            finInt.append((value-zeroValue)/(coefSet[2]*coefSet[3]))
+        finInt = [((value-zeroValue)/(coefSet[2]*coefSet[3])) for value in corrInt]
 
         finInt.insert(0, -zeroValue/(coefSet[2]*coefSet[3]))
         allInt.append(finInt)
@@ -171,41 +171,6 @@ def trapezoidal_integration (n, y, dx):
         intVal.append(integral)
 
     return intVal
-
-#функция устранения ошибки интегрирования
-def minus_integration (incomingInt):
-
-    corrInt = []
-    delta = incomingInt[-1] - incomingInt[0]
-    
-    for i, value in enumerate(incomingInt):
-        corrInt.append(value - delta*(i+1)/(len(incomingInt)))
-    
-    return corrInt
-#функция усреднения по нескольким периодам
-def array_averaging (allPeriod) -> tuple:
-  
-    '''
-    Функция выполняет вычисление усредненного значения интегралов 
-    по нескольким периодам через транспонирование двумерного списка.			
-     ------------------------------------------------------------------------------------
-    Переменные
-        
-        allPeriod : list
-            Двумерный список. Каждая строка списка представляет собой 
-            отдельный список, являющийся интегрированным сигналом 
-            по одному периоду датафрейма. 
-
-    ''' 
-    
-    avgArr = []
-    arr = np.asarray(allPeriod)
-    arrTransp = arr.transpose()
-    
-    for item in arrTransp:
-        avgArr.append(sum(item)/len(arr))
-   
-    return avgArr
 
 #простой вывод графика
 def graph(avgCurrent, avgInt):
