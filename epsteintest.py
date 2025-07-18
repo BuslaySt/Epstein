@@ -14,7 +14,7 @@ class EpsteinFrameUI(QMainWindow):
     TIMEBASE = 127         # 1252 - 10 μs, 127 - 1 μs
     MAX_ATTEMPTS = 5     # Число попыток добраться до целевого значения
     NUMBER_OF_SAMPLES = 25*100000 # Базовое число сэмплов в настройках, x10 для измерения
-    STARTAMP = 3500000  # 3500000 заданная амплитуда в мкВ
+    STARTAMP = 2500000  # 3500000 заданная амплитуда в мкВ
     AMPSTEP = 200000  # Стартовый шаг изменения амплитуды генератора в мкВ
     Ch_A_START = 4      # 50mV предел канала А для начала
     Ch_B_START = 5      # 200mV для канала B
@@ -144,6 +144,7 @@ class EpsteinFrameUI(QMainWindow):
                 elif limits_check != 0:
                     self._message("Достигнут предел измерения")
                     break
+                break
             '''
                 # Расчет текущей индукции
                 runParameters = [self.data, self.freq, 0, configNumber, sampleParameters]
