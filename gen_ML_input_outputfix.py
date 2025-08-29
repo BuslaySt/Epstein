@@ -7,7 +7,7 @@ import scipy as sp
 import pandas as pd
 
 import math, time
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from serial import Serial
 
 from pico3204D import Picoscope3204D
@@ -25,7 +25,7 @@ def getFFT(voltage):
     for num in range(0, 7):
         an.append(2*np.real(F[num]) /n)
         bn.append(-2*np.imag(F[num]) /n)
-    print('FFT done')
+    #print('FFT done')
     return (an, bn, F)
  
 def genSinewave(freq, amp, t):
@@ -33,7 +33,7 @@ def genSinewave(freq, amp, t):
     return sinewave
 
 def genHarm(i, freq, amp, t, frac):
-    additionalSignal = 0.0001*frac*amp*np.sin(2*np.pi*(i+2)*freq*t)
+    additionalSignal = 0.0001*frac*amp*np.sin(2*np.pi*3*freq*t)
     
     return additionalSignal
 
@@ -51,7 +51,7 @@ def loadGen(signal):
     for point in waveform:
         value = point.to_bytes(2, 'big', signed = 'True')
         serialData.write(value)
-    print('Data load to gen done')
+    #print('Data load to gen done')
 
 def zero():
     zeroe = 0
@@ -70,6 +70,8 @@ def create_gaussian_peak(size=1000, center=500, amplitude=1, sigma=10):
     sigma: стандартное отклонение (ширина пика)
     """
     x = np.arange(size)
+    if center > 500:
+        amplitude = -amplitude
     arr = amplitude * np.exp(-((x - center) ** 2) / (2 * sigma ** 2))
     return arr
 
@@ -104,6 +106,8 @@ def expand_coefficients_dataframe(df):
     return new_df
 
 #---------------------------------------------------------------------------------------#
+serialData = Serial('COM5', baudrate=115200)
+zero() # обнуление генератора
 picoscope = Picoscope3204D()
 picoscope.initialize_ports(channelA_range=10, channelB_range=7)
 
@@ -112,28 +116,36 @@ duration = 0.02
 N = int(fsamp*duration)
 t = np.linspace(0, duration, N)
 
-serialData = Serial('COM5', baudrate=115200)
+
 coefA_out = []
 coefB_out = []
 coefA_in = []
 coefB_in = []
 res = []
 
-zero() # обнуление генератора
-iterations = 20
-freqs = np.arange(50, 400, 50) # от 50 до 400 с шагом 50
+
+iterations = 100
+freqs = np.arange(50, 250, 50) # от 50 до 400 с шагом 50
 startAmp = 10
 amp = startAmp
 
+
 for freq in freqs:
-    signal = genSinewave(freq, amp, t)
-    
+    print('Running at ', freq)
+    signalSine = genSinewave(freq, amp, t)
     for i in range(0, iterations):
+        frac = np.random.randint(100)
+        amp = np.random.randint(18)
+        peak_pos = np.random.randint(1000)
+        peak = create_gaussian_peak(1000, center=peak_pos, amplitude=amp/300, sigma=15)
+        harm = genHarm(i, freq, amp, t, frac)
+        
+        signal = signalSine + peak + harm  # + genModulations(i, voltage) #тут можно убрать genModulations, она может привести к совершенно кривому варианту на выходе
         loadGen(signal)
-        time.sleep(0.1)
+        time.sleep(0.2)
         voltage = picoscope.read_data(max_samples=1000, sample_rate=2502).ch_B # read_data возвращает три столбца - 'time' : time_axis, 'ch_A' : adc2mVChAMax, 'ch_B' : adc2mVChBMax
-        # coefA_in, coefB_in.append(getFFT(signal)) ломало вывод data
-        # coefA_out, coefB_out.append(getFFT(voltage)) ниже исправление
+        
+        zero()
         an_in, bn_in, F_in = getFFT(signal)        #
         an_out, bn_out, F_out = getFFT(voltage)     #
         ######################################
@@ -147,15 +159,7 @@ for freq in freqs:
             "coefB_out": bn_out,
             "THD_out": thd_out
             })
-        frac = np.random.randint(100)
-        amp = np.random.randint(20)
-        peak_pos = np.random.randint(1000)
-        peak = create_gaussian_peak(1000, center=peak_pos, amplitude=amp/500, sigma=15)
-        harm = genHarm(i, freq, amp, t, frac)
-        signal = signal + harm + peak # + genModulations(i, voltage) #тут можно убрать genModulations, она может привести к совершенно кривому варианту на выходе
-        time.sleep(0.5)
-    freq+=50
-    
+
 
 zero() # обнуление генератора
 picoscope.close()
@@ -166,3 +170,4 @@ data.to_csv(f"data_{time.strftime("%Y-%m-%d_%H-%M")}.csv")
     
 expdata = expand_coefficients_dataframe(data)
 expdata.to_csv(f"expdata_{time.strftime("%Y-%m-%d_%H-%M")}.csv")
+
